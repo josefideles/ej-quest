@@ -1,0 +1,24 @@
+-- =====================================================================================
+-- 03_views.sql  |  ESCRITO À MÃO POR FIDELES  |  quarta, 11/11 (22h15)
+-- Views do planejamento (seção 4.4).
+-- =====================================================================================
+--
+-- [ ] vw_ranking_consolidado
+--     Uma linha por usuário ATIVO com pontos:
+--       id_usuario, nome, total_pontos (SUM), ultima_concessao (MAX de concedida_em)
+--     Caminho dos JOINs: pontuacao -> participacao_avaliacao -> matricula -> usuario
+--     (é exatamente o caminho que a 3FN obriga, porque pontuacao não guarda o usuário)
+--     A ORDEM (RN12) fica na consulta que usa a view, não dentro dela:
+--       ORDER BY total_pontos DESC, ultima_concessao ASC, id_usuario ASC
+--
+-- [ ] vw_progresso_membro
+--     Uma linha por matrícula:
+--       id_matricula, id_usuario, id_trilha, avaliacoes_exigidas (COUNT), avaliacoes_concluidas (COUNT),
+--       percentual (concluídas / exigidas * 100)
+--     Dica: avaliações da trilha vêm por avaliacao -> modulo -> trilha;
+--           concluídas vêm por conclusao -> participacao_avaliacao (da mesma matrícula).
+--     Cuidado com divisão por zero (NULLIF) e com LEFT JOIN para matrícula sem nada concluído.
+--
+-- Pergunta da apresentação: "a view deixa mais rápido?" -> Não. View comum guarda a definição
+-- da consulta, não o resultado. Quem guarda resultado é a MATERIALIZED VIEW (não usada aqui).
+

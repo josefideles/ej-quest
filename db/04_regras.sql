@@ -1,0 +1,45 @@
+-- =====================================================================================
+-- 04_regras.sql  |  ESCRITO À MÃO POR FIDELES  |  quarta, 11/11 (22h15)
+-- Trigger de recompensa e procedure de aprovação (seções 4.3, 4.4 e diagrama 5.6).
+-- =====================================================================================
+--
+-- ---------------------------------------------------------------- TRIGGER
+-- [ ] Função fn_conceder_pontos() RETURNS trigger LANGUAGE plpgsql
+--       - descobre pontos_previstos da avaliação da participação NEW.id_participacao
+--         (conclusao -> participacao_avaliacao -> avaliacao)
+--       - INSERT INTO pontuacao (id_participacao, pontos, concedida_em) VALUES (NEW.id_participacao, ..., now())
+--       - RETURN NEW
+-- [ ] CREATE TRIGGER trg_conclusao_pontua AFTER INSERT ON conclusao
+--       FOR EACH ROW EXECUTE FUNCTION fn_conceder_pontos();
+--
+--   Saiba explicar: NEW, AFTER x BEFORE, FOR EACH ROW, e por que a trigger roda DENTRO da mesma
+--   transação (se ela falhar, a conclusão também é desfeita: atomicidade).
+--
+-- ---------------------------------------------------------------- PROCEDURE
+-- [ ] CREATE PROCEDURE aprovar_projeto(
+--         p_tentativa bigint, p_avaliador bigint, p_parecer text, INOUT p_status text)
+--     LANGUAGE plpgsql
+--     Passos:
+--       1. Achar a participação da tentativa e TRAVAR a linha:
+--            SELECT ... FROM participacao_avaliacao WHERE id_participacao = ... FOR UPDATE;
+--          (a segunda aprovação simultânea fica ESPERANDO aqui até a primeira terminar)
+--       2. Se já existe conclusão para a participação: p_status := 'ja_aprovada'; RETURN;
+--          (idempotência: repetir não gera ponto novo)
+--       3. Validar: tentativa existe? é de projeto? ainda não tem resultado? o avaliador não é o
+--          dono da entrega (autoaprovação)? Se falhar: RAISE EXCEPTION '...';
+--       4. INSERT em resultado_tentativa (decisao 'aprovada', avaliador, parecer, now())
+--       5. INSERT em conclusao (a trigger insere a pontuação sozinha)
+--       6. p_status := 'aprovada';
+--     A procedure NÃO faz COMMIT: quem abre e fecha a transação é a API (ou você, no psql).
+--
+--   Saiba explicar: procedure x function (CALL x SELECT); para que serve o INOUT;
+--   o que o FOR UPDATE trava e até quando; por que o nível READ COMMITTED basta aqui.
+--
+-- ---------------------------------------------------------------- TESTE DAS DUAS JANELAS
+--   Janela A:  BEGIN;  CALL aprovar_projeto(<tentativa>, <gestor>, 'ok', NULL);   (sem COMMIT)
+--   Janela B:  CALL aprovar_projeto(<mesma tentativa>, <gestor>, 'ok', NULL);     (fica esperando)
+--   Janela A:  COMMIT;
+--   Janela B:  destrava e devolve p_status = 'ja_aprovada'
+--   Conferir:  SELECT count(*) FROM conclusao WHERE id_participacao = ...;   -> 1
+--              SELECT count(*) FROM pontuacao WHERE id_participacao = ...;   -> 1
+
