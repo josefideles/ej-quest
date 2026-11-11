@@ -1,0 +1,52 @@
+-- =====================================================================================
+-- 01_schema.sql  |  ESCRITO À MÃO POR FIDELES
+-- Tabelas e restrições do EJ Quest (ER da seção 5.3 do planejamento + quadro 5.3.1).
+-- Parte 1: terça, 10/11 (22h15).  Parte 2: quarta, 11/11 (18h).
+-- =====================================================================================
+--
+-- Antes de cada tabela, pergunte: qual a chave? quem eu referencio? o que não pode repetir?
+-- que valor é proibido (CHECK)? Escreva a resposta como restrição, não como comentário.
+--
+-- Dicas de sintaxe (PostgreSQL 16):
+--   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+--   coluna bigint NOT NULL REFERENCES outra_tabela (id_outra) ON DELETE RESTRICT
+--   CONSTRAINT nome_uk UNIQUE (coluna_a, coluna_b)
+--   CONSTRAINT nome_ck CHECK (tipo IN ('quiz', 'projeto'))
+--   PRIMARY KEY (coluna_a, coluna_b)          -- chave composta
+--   timestamptz NOT NULL DEFAULT now()
+--
+-- Por que ON DELETE RESTRICT quase sempre? RN17: desligar alguém não apaga histórico.
+--
+-- ---------------------------------------------------------------- PARTE 1 (terça)
+-- [ ] usuario              id, nome, email (UNIQUE), senha_hash, ativo, gestor_geral
+--                          (RN01: e-mail único e normalizado. Pense: como garantir que
+--                           "A@x.com" e "a@x.com" não convivam? Dica: índice único em lower(email))
+-- [ ] diretoria            id, nome (UNIQUE)
+-- [ ] vinculo_diretoria    PK (id_usuario, id_diretoria), papel CHECK ('membro','gestor'), ativo
+-- [ ] trilha               id, id_diretoria FK, titulo, descricao, status CHECK ('rascunho','publicada','arquivada')
+-- [ ] modulo               id, id_trilha FK, titulo, ordem; UNIQUE (id_trilha, ordem)
+-- [ ] licao                id, id_modulo FK, titulo, texto, url_externa, ordem; UNIQUE (id_modulo, ordem)
+-- [ ] matricula            id, id_usuario FK, id_trilha FK, matriculada_em; UNIQUE (id_usuario, id_trilha)  (RN04)
+-- [ ] avaliacao            id, id_modulo FK, tipo CHECK ('quiz','projeto'), titulo, instrucoes,
+--                          pontos_previstos CHECK (> 0), percentual_minimo
+--                          (desafio: CHECK que exige percentual_minimo só quando tipo = 'quiz')
+-- [ ] questao              id, id_avaliacao FK, enunciado, ordem; UNIQUE (id_avaliacao, ordem)
+-- [ ] alternativa          PK (id_questao, numero), texto, correta
+--
+-- ---------------------------------------------------------------- PARTE 2 (quarta)
+-- [ ] participacao_avaliacao  id, id_matricula FK, id_avaliacao FK; UNIQUE (id_matricula, id_avaliacao)  (RN04)
+-- [ ] tentativa_avaliacao     id, id_participacao FK, numero, enviada_em, link_projeto, descricao_entrega;
+--                             UNIQUE (id_participacao, numero)
+--                             (3FN: NÃO tem id_usuario. Saiba explicar por quê.)
+-- [ ] resposta_tentativa      PK (id_tentativa, id_questao), numero_alternativa;
+--                             FK composta (id_questao, numero_alternativa) -> alternativa (id_questao, numero)
+-- [ ] resultado_tentativa     PK = id_tentativa (FK), id_avaliador FK usuario (NULL no quiz),
+--                             decisao CHECK ('aprovada','reprovada','ajustes'), percentual_acerto,
+--                             parecer, avaliada_em
+-- [ ] conclusao               PK = id_participacao (FK), id_tentativa UNIQUE FK -> resultado_tentativa
+--                             (uma conclusão por participação = barreira contra aprovação dupla)
+-- [ ] pontuacao               PK = id_participacao (FK -> conclusao), pontos CHECK (> 0), concedida_em
+--                             (uma pontuação por conclusão = barreira contra ponto duplicado)
+--
+-- Teste ao terminar:  \dt   (lista as tabelas)   e   \d tentativa_avaliacao   (mostra restrições)
+

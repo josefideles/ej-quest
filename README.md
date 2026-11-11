@@ -1,53 +1,89 @@
 # EJ Quest
 
-Protótipo visual de uma plataforma gamificada de gestão do conhecimento e capacitação para empresas juniores, desenvolvido para a AB1 de Programação Web I.
+Plataforma de gestão do conhecimento gamificada para Empresas Juniores. Projeto de **Banco de
+Dados II** (persistência poliglota: PostgreSQL + Redis) e base do back-end de **Programação Web I**.
 
-## 1. Quem precisa da solução?
+- **PostgreSQL 16:** fonte oficial (usuários, trilhas, tentativas, conclusões, pontos).
+- **Redis 7:** cópia descartável do ranking (Cache-Aside, chave `ranking:geral:v1`, TTL 60 s).
+- **API Node.js + Express:** único componente que fala com os dois bancos.
 
-Empresas juniores são o público-alvo. A RocketJR é o contexto proposto para organizar conteúdos e apoiar a integração de membros. Trata-se de uma proposta acadêmica, sem pesquisa ou validação institucional declarada.
+## Como rodar
 
-## 2. Qual problema resolve?
-
-Materiais dispersos dificultam o acesso ao conhecimento e geram repetição de orientações. A proposta completa é organizar esses materiais em trilhas de aprendizagem. Esta entrega demonstra apenas a interface, sem disponibilizar conteúdos ou acompanhar o aprendizado.
-
-## 3. Como funciona o protótipo?
-
-- **Header:** nome EJ Quest e 200 XP ilustrativos.
-- **Jornada:** quatro paradas com imagens locais, números, títulos e descrições: Conheça a EJ, Ferramentas de trabalho, Processos e projetos e Próximos passos.
-- **Perfil:** foto de Gabriel Fideles, cargo Membro, organização RocketJR, XP e emblemas demonstrativos.
-- **Navbar:** alterna entre Jornada e Perfil; Ranking e Desafios estão desativados, com “Em breve”.
-
-## Tecnologias
-
-- **React e JavaScript:** componentes, dados e navegação com `useState`.
-- **JSX:** estrutura da interface.
-- **CSS puro:** estilos, Flexbox, Grid nos emblemas e media queries.
-- **Vite:** desenvolvimento e build.
-- **Imagens locais SVG e PNG:** ilustrações e foto do perfil.
-
-## Requisitos acadêmicos atendidos
-
-| Requisito | Implementação |
-| --- | --- |
-| Divisão do layout | Header, conteúdo principal e Navbar |
-| Estilização de textos | Fonte, tamanho, peso e cor |
-| Estilização de imagens | Dimensões, bordas e formato |
-| Flexbox | Alinhamento e distribuição dos elementos |
-| React e JSX | Construção da interface |
-| Componentes | Header, Navbar e Parada reutilizável |
-
-## Como executar
-
-Requer Node.js 22.12 ou superior e npm. Dentro de `ej-quest-ab1/`:
+Requisitos: Docker com Compose, e Node.js 22 (só para rodar o script de medição fora do contêiner).
 
 ```bash
-npm ci            # Instalar dependências
-npm run dev       # Iniciar desenvolvimento
-npm run build     # Gerar build em dist/
+cp .env.example .env
+docker compose up -d --build
+./scripts/recriar-banco.sh
+curl http://localhost:3000/saude
 ```
 
-Abra o endereço informado pelo Vite no terminal.
+Abrir o banco e o cache na mão:
 
-## Limitações
+```bash
+docker compose exec db psql -U ej_quest -d ej_quest
+docker compose exec cache redis-cli
+```
 
-Dados estáticos, sem backend, banco de dados, login ou progressão funcional. As paradas não abrem conteúdos; XP e emblemas não são atualizados pelas ações do usuário.
+Front-end (React + Vite):
+
+```bash
+cd web && npm install && npm run dev
+```
+
+## Estrutura
+
+```
+web/                    front-end React (Vite), veio da AB1 de PW1
+docs/spec/              especificação SDD (requisitos, arquitetura, plano e gates, decisões)
+docs/manual/            manual de estudo, capítulo por capítulo
+db/                     scripts SQL, rodados em ordem pelo recriar-banco.sh
+  01_schema.sql         tabelas e restrições (3FN)
+  02_indices.sql        índices extras, medidos com e sem
+  03_views.sql          vw_ranking_consolidado, vw_progresso_membro
+  04_regras.sql         trigger de pontuação e procedure aprovar_projeto
+  05_povoamento.sql     carga sintética (>= 100.000 tentativas)
+api/
+  src/index.js          sobe o Express
+  src/rotas.js          endpoints (controllers)
+  src/db.js             pool de conexões do PostgreSQL
+  src/cache.js          cliente Redis tolerante a falha
+  src/servicos/         regra de negócio: ranking (Cache-Aside) e aprovação (transação)
+  scripts/medir.js      mediana e p95 de um endpoint
+scripts/recriar-banco.sh
+docker-compose.yml
+```
+
+## Endpoints
+
+A identificação do usuário é **simulada** pelo cabeçalho `X-Usuario-Id` (login real fica para a
+etapa de Programação Web I).
+
+| Método | Rota | O que faz |
+|---|---|---|
+| GET | `/saude` | Confere API e PostgreSQL |
+| GET | `/ranking` | Ranking geral; lê do Redis e, se não houver, do PostgreSQL |
+| POST | `/tentativas/:id/aprovar` | Aprova um projeto numa transação; invalida o ranking depois do COMMIT |
+
+```bash
+curl -H 'X-Usuario-Id: 1' http://localhost:3000/ranking
+curl -X POST -H 'X-Usuario-Id: 1' -H 'Content-Type: application/json' \
+     -d '{"parecer":"Atende aos critérios"}' http://localhost:3000/tentativas/10/aprovar
+```
+
+## Medições
+
+```bash
+cd api
+node scripts/medir.js http://localhost:3000/ranking 30 --frio   # cache sempre vazio
+node scripts/medir.js http://localhost:3000/ranking 30          # cache quente
+docker compose stop cache                                       # teste de queda do Redis
+```
+
+## Documentação
+
+- `AGENTS.md`: regras para quem mexe no código.
+- `docs/spec/`: fonte da verdade (requisitos RF/RN/RNF, contrato da API, gates, decisões DEC-xxx).
+- `docs/manual/`: manual de estudo do projeto.
+- Protótipo: arquivo Figma "EJ Quest" (13 telas, componentes, tokens e mapa tela → requisito → API → banco).
+- Histórico: planejamento da AB1 de BD2 (`planejamento_ab1_bd2.md`, fora do repositório).

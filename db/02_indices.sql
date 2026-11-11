@@ -1,0 +1,23 @@
+-- =====================================================================================
+-- 02_indices.sql  |  ESCRITO À MÃO POR FIDELES  |  quarta, 11/11 (22h15)
+-- Índices planejados para as consultas reais (seção 8.3 do planejamento).
+-- =====================================================================================
+--
+-- Lembre: PRIMARY KEY e UNIQUE já criam índice sozinhos. Aqui entram só os EXTRAS.
+-- Confira os que já existem com:  \di
+--
+-- [ ] idx_tentativa_participacao_data  em tentativa_avaliacao (id_participacao, enviada_em)
+--     Consulta que ele ajuda: "histórico de uma participação, do mais recente ao mais antigo".
+--     Pergunta: por que a ordem das colunas importa num índice composto?
+--
+-- [ ] (opcional) índice em matricula (id_usuario)
+--     Pergunta: o UNIQUE (id_usuario, id_trilha) já não serve para buscar por id_usuario? (serve:
+--     a primeira coluna de um índice composto pode ser usada sozinha)
+--
+-- Experimento de sexta (o índice é o ÚNICO que se derruba; chaves e UNIQUE ficam):
+--   EXPLAIN (ANALYZE, BUFFERS) SELECT ... WHERE id_participacao = $X ORDER BY enviada_em DESC;
+--   DROP INDEX idx_tentativa_participacao_data;
+--   EXPLAIN (ANALYZE, BUFFERS) <a mesma consulta>;
+--   CREATE INDEX ... (de novo)
+--   Anote: tipo de varredura (Seq Scan x Index Scan / Bitmap), "Execution Time", buffers lidos.
+

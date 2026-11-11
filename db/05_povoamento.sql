@@ -1,0 +1,37 @@
+-- =====================================================================================
+-- 05_povoamento.sql  |  ESCRITO POR FIDELES  |  quinta, 12/11 (18h)
+-- Carga sintética com no mínimo 100.000 registros em tentativa_avaliacao (seção 8.2).
+-- Dados inventados: nada de membros reais.
+-- =====================================================================================
+--
+-- Reprodutível: fixe a semente no começo, assim a mesma carga sai igual toda vez.
+--   SELECT setseed(0.42);
+--
+-- O padrão que resolve quase tudo aqui:
+--   INSERT INTO tabela (col_a, col_b)
+--   SELECT 'Nome ' || n, (random() * 10)::int
+--   FROM generate_series(1, 500) AS n;
+--
+-- Ordem (cada passo depende do anterior por causa das FKs):
+-- [ ] 3 diretorias (Projetos, Marketing, Gestão de Pessoas)
+-- [ ] ~500 usuários (email 'usuario' || n || '@ejquest.test', senha_hash fictício); 1 gestor geral
+-- [ ] vínculos usuário-diretoria (cada usuário em 1 diretoria; alguns como gestor)
+-- [ ] 6 trilhas (2 por diretoria), status 'publicada'
+-- [ ] módulos (3 por trilha) e lições (2 por módulo)
+-- [ ] avaliações: 1 quiz por módulo; 1 projeto no último módulo de cada trilha
+-- [ ] matrículas: cada usuário em 2 trilhas da sua diretoria
+-- [ ] participações: uma por matrícula x avaliação da trilha
+-- [ ] TENTATIVAS: espalhar >= 100.000 entre as participações (numero = 1, 2, 3...)
+--       dica: generate_series dentro de um JOIN LATERAL ou CROSS JOIN para gerar N por participação
+-- [ ] resultados para parte das tentativas (reprovada / ajustes / aprovada)
+-- [ ] conclusões para uma fração das participações (a trigger gera as pontuações)
+--       cuidado: no máximo UMA por participação, e apontando para tentativa com resultado 'aprovada'
+--
+-- Simplificação a declarar na apresentação: a carga respeita as restrições do banco, mas não
+-- reproduz todas as regras de ordem (ex.: RN06, projeto só depois dos quizzes).
+--
+-- Conferir no fim:
+--   SELECT count(*) FROM tentativa_avaliacao;   -- >= 100000
+--   SELECT count(*) FROM pontuacao;             -- tem que ter pontos para o ranking
+--   SELECT * FROM vw_ranking_consolidado ORDER BY total_pontos DESC LIMIT 10;
+
