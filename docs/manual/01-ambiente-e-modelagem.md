@@ -46,8 +46,7 @@ services:
 
 **Três escolhas que você deve saber justificar:**
 
-1. **Porta 5433, não 5432.** O Plano Diretor também usa PostgreSQL local. Mapear para outra porta
-   evita conflito entre os dois projetos.
+1. **Porta 5433, não 5432.** O Plano Diretor também usa PostgreSQL local. Mapear para outra porta evita conflito entre os dois projetos.
 2. **Redis sem persistência.** O ranking no Redis é descartável por definição (constituição, item
    2). Salvar em disco seria pagar custo para guardar algo que podemos refazer.
 3. **`depends_on` com `service_healthy` só para o banco.** A API não sobe antes de o PostgreSQL
@@ -84,11 +83,10 @@ saudável" serve para quase todo back-end. Copie o Compose e troque imagens e no
 ❓ **O professor pode perguntar:**
 - "Como eu rodo na minha máquina?" → `cp .env.example .env`, `docker compose up -d --build`,
   `./scripts/recriar-banco.sh`. Está no README.
-- "Volume é backup?" → Não. Volume sobrevive ao contêiner, mas não a um disco perdido ou a um
-  `down -v`. Backup é cópia em outro lugar.
+- "Volume é backup?" → Não. Volume sobrevive ao contêiner, mas não a um disco perdido ou a um `down -v`. Backup é cópia em outro lugar.
 
 ✍️ **Minhas notas (Parte A)**
->
+>Meu professor de PW1 perguntou como meu amigo acessou o banco na apresentação dele, e ele comentou desse psql, mas ainda não sei exatamente o que é e como vai funcionar, ou está funcionando no meu projeto.
 >
 
 ---
@@ -176,16 +174,14 @@ flowchart TB
 ## 1.6 Normalização: 1FN, 2FN e 3FN com exemplos do projeto
 
 🧠 **Normalizar** é organizar as tabelas para que **cada fato fique guardado num lugar só**. É a
-mesma regra do "dono único" do seu segundo cérebro: fato copiado em dois lugares envelhece em
-ritmos diferentes e um dia os dois discordam.
+mesma regra do "dono único" do seu segundo cérebro: fato copiado em dois lugares envelhece em ritmos diferentes e um dia os dois discordam.
 
 ### 1FN · cada célula guarda um valor só
 
 ❌ **Errado:** `tentativa_avaliacao (id, respostas)` com `respostas = '2,4,1,3'`.
 Como achar todo mundo que errou a questão 2? Precisaria cortar texto.
 
-✅ **No EJ Quest:** cada resposta é uma linha em `resposta_tentativa (id_tentativa, id_questao,
-numero_alternativa)`.
+✅ **No EJ Quest:** cada resposta é uma linha em `resposta_tentativa (id_tentativa, id_questao, numero_alternativa)`.
 
 ### 2FN · em chave composta, nada depende de só um pedaço da chave
 
@@ -206,28 +202,23 @@ O usuário já é alcançado por `tentativa → participação → matrícula �
 diz "usuário 15".
 
 ✅ **No EJ Quest:** `tentativa_avaliacao` **não tem** `id_usuario`; `pontuacao` **não tem**
-`id_usuario`. Total de pontos, percentual de progresso e portfólio também não são guardados: são
-**calculados** (views e consultas).
+`id_usuario`. Total de pontos, percentual de progresso e portfólio também não são guardados: são **calculados** (views e consultas).
 
-**O preço da 3FN:** consultas com mais JOINs. O ranking precisa andar
-`pontuacao → participacao_avaliacao → matricula → usuario`. É exatamente aí que entram a **view**
+**O preço da 3FN:** consultas com mais JOINs. O ranking precisa andar `pontuacao → participacao_avaliacao → matricula → usuario`. É exatamente aí que entram a **view**
 (organiza a consulta), o **índice** (acelera os JOINs) e o **cache** (evita repetir a soma). Ou
 seja: a normalização cria o problema que o resto da disciplina resolve. Essa é uma ótima frase
 para a apresentação.
 
 **Dois "fatos históricos" que parecem duplicação e não são:** `pontuacao.pontos` e
-`resultado_tentativa.percentual_acerto`. Eles registram **o que valia no momento do evento**. Se a
-avaliação mudar de 80 para 100 pontos numa nova edição, quem foi aprovado antes continua com 80.
+`resultado_tentativa.percentual_acerto`. Eles registram **o que valia no momento do evento**. Se a avaliação mudar de 80 para 100 pontos numa nova edição, quem foi aprovado antes continua com 80.
 
 🎯 Cobre: especificação de BD2 ("modelagem normalizada até 3FN"), **RNF01**, **RNF07**.
 
 ❓ **O professor pode perguntar:**
 - "Mostre uma dependência transitiva que você evitou." → `id_usuario` na tentativa (acima).
-- "Ter FK garante 3FN?" → Não. FK garante que a referência existe. 3FN é sobre de que cada coluna
-  depende. São coisas diferentes.
+- "Ter FK garante 3FN?" → Não. FK garante que a referência existe. 3FN é sobre de que cada coluna depende. São coisas diferentes.
 - "Por que `alternativa` tem chave composta?" → A alternativa só existe dentro da questão
-  ("alternativa 2 da questão 57"). Com `(id_questao, numero)`, a resposta aponta para uma escolha
-  válida daquela questão sem guardar um id global e a questão de forma redundante.
+  ("alternativa 2 da questão 57"). Com `(id_questao, numero)`, a resposta aponta para uma escolha válida daquela questão sem guardar um id global e a questão de forma redundante.
 
 ## 1.7 Restrições: o banco se defendendo
 
@@ -269,11 +260,17 @@ acontece se o pai for apagado? As respostas viram as restrições.
 Para cada comando, diga se o banco aceita ou recusa, e qual restrição age. Respostas no fim.
 
 1. Inserir uma matrícula do usuário 12 na trilha 3, e depois outra igual.
+	1. Não, não aceita já que cada usuário é único em cada trilha.
 2. Inserir uma tentativa para a participação 99999, que não existe.
+	1. Aceita, a participação ainda não existe e será criada.
 3. Inserir uma avaliação com `tipo = 'prova'`.
+	1. Aceita, será como um desafio
 4. Inserir a segunda linha em `pontuacao` para a participação 300.
+	1. Não aceita, cada pontuação só é concedida uma vez na participação aprovada.
 5. Apagar o usuário 12, que tem matrículas.
+	1. Não é possível apagar nenhum usuário, apenas setar ativo como false
 6. Cadastrar `Gabriel@Rocket.com` quando já existe `gabriel@rocket.com`.
+	1. Nesse caso seria o mesmo e-mail, deve ter um tratamento de maiúsculo e minúsculo, e só aceitar minúsculo, e não permitir o cadastro.
 
 <details>
 <summary>Respostas</summary>
@@ -289,8 +286,12 @@ Para cada comando, diga se o banco aceita ou recusa, e qual restrição age. Res
 
 ## 1.9 Como ficou no projeto
 
-*Esta seção é preenchida depois da sessão de quarta (DDL em par), com o código real e o que mudou
-em relação ao planejamento.*
+O modelo virou `db/01_schema.sql` em 12/11/2026 (DEC-009), com as 16 tabelas deste capítulo. O que mudou em relação ao planejamento, e por quê, está no cap. 2:
+
+- `tentativa_avaliacao` ganhou `UNIQUE (id_participacao, id_tentativa)`, para servir de alvo a uma FK composta em `conclusao`: a tentativa que conclui uma participação tem que ser dela.
+- `alternativa` ganhou um índice único parcial: no máximo uma correta por questão.
+- `avaliacao` ganhou `obrigatoria` (o progresso conta só as obrigatórias, RN11).
+- Os seis casos do exercício 1.8 rodam de verdade em `db/testes/01_restricoes.sql`, e todos são recusados (`docs/resultados/testes-banco.txt`).
 
 ## 1.10 O que o professor pode perguntar (resumo do capítulo)
 
@@ -306,13 +307,13 @@ em relação ao planejamento.*
 ## ✍️ Fechamento do capítulo 1
 
 **O que aprendi:**
->
+>Que esses termos são muito difíceis. Aprendi o que é docker e suas definições, um pouco da modelagem
 
 **O que ainda não está claro:**
->
+>As tabelas, suas relações, porque tantas e o que cada uma faz, a forma 3FN não está claro, ainda não entendi ao certo, achei que era para evitar redundância e não chamar outras tabelas e manter a relação. E vi que isso é um problema, que o view, índice e o cache resolve
 
 **Dificuldades:**
->
+>Muito nessa parte
 
 **Insights (inclusive para outros projetos):**
->
+>Tentar entender melhor e fazer o mapeamento das tabelas e interações previamente. Porque depois de pronto é um problema para mudar

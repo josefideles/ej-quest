@@ -8,6 +8,7 @@
 
 1. **Antes** da sessão de desenvolvimento do dia, leia o capítulo (20 a 30 minutos).
 2. **Durante** a sessão, a gente implementa em par. Você pergunta tudo que não fechar.
+   (Desde 12/11/2026, DEC-009: o agente implementa e o capítulo explica o código já escrito.)
 3. **Depois**, a seção "Como ficou no projeto" do capítulo é atualizada com o código real, e você
    preenche "Minhas notas".
 4. Antes da apresentação, releia só as seções **"O que o professor pode perguntar"**.
@@ -22,11 +23,11 @@ da spec, vale a spec.
 |---|---|---|---|---|
 | [00](00-visao-e-arquitetura.md) | Visão geral, persistência poliglota e arquitetura | ter 10/11 | BD2 | ✅ escrito |
 | [01](01-ambiente-e-modelagem.md) | Ambiente com Docker e modelagem relacional (ER, 3FN, restrições) | ter 10/11 | BD2 | ✅ escrito |
-| 02 | Escrevendo o schema: DDL, tipos, chaves, CHECK e índices | qua 11/11 | BD2 | a escrever |
-| 03 | Regras dentro do banco: views, trigger, procedure, ACID, isolamento e `FOR UPDATE` | qua 11/11 | BD2 | a escrever |
-| 04 | Carga de 100 mil registros: `generate_series` e reprodutibilidade | qui 12/11 | BD2 | a escrever |
-| 05 | Back-end: Express, pool, transação na API, Redis e Cache-Aside | qui 12/11 | BD2 | a escrever |
-| 06 | Medir e apresentar: `EXPLAIN`, latência, p95 e o roteiro da AB2 | sex 13/11 | BD2 | a escrever |
+| [02](02-schema-e-indices.md) | O schema escrito: DDL, tipos, chaves, CHECK e o índice medido | qui 12/11 | BD2 | ✅ escrito |
+| [03](03-regras-no-banco.md) | Regras dentro do banco: views, trigger, procedure, ACID e `FOR UPDATE` | qui 12/11 | BD2 | ✅ escrito |
+| [04](04-carga.md) | Carga de 140 mil tentativas: `generate_series` e reprodutibilidade | qui 12/11 | BD2 | ✅ escrito |
+| [05](05-api-e-cache.md) | Back-end: Express, pool, transação na API, Redis e Cache-Aside | qui 12/11 | BD2 | ✅ escrito |
+| [06](06-medir-e-apresentar.md) | Medir e apresentar: números, roteiro e demo da AB2 | qui 12/11 | BD2 | ✅ escrito |
 | 07 | Front em React: rotas, props, estado, eventos e consumo da API | 15 a 18/11 | PW1 | a escrever |
 | 08 | Login de verdade, deploy e README | 18 a 25/11 | PW1 | a escrever |
 

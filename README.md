@@ -18,6 +18,15 @@ docker compose up -d --build
 curl http://localhost:3000/saude
 ```
 
+Testes e medições (cada um guarda a saída em `docs/resultados/`):
+
+```bash
+./scripts/testar-banco.sh    # restrições, regras e concorrência real (grava 1 aprovação)
+./scripts/testar-api.sh      # todas as rotas, caminho infeliz e Redis fora (grava aprovações)
+./scripts/medir-indice.sh    # EXPLAIN com e sem o índice
+./scripts/recriar-banco.sh   # volta ao estado limpo da carga
+```
+
 Abrir o banco e o cache na mão:
 
 ```bash
@@ -39,18 +48,22 @@ docs/spec/              especificação SDD (requisitos, arquitetura, plano e ga
 docs/manual/            manual de estudo, capítulo por capítulo
 db/                     scripts SQL, rodados em ordem pelo recriar-banco.sh
   01_schema.sql         tabelas e restrições (3FN)
-  02_indices.sql        índices extras, medidos com e sem
-  03_views.sql          vw_ranking_consolidado, vw_progresso_membro
-  04_regras.sql         trigger de pontuação e procedure aprovar_projeto
-  05_povoamento.sql     carga sintética (>= 100.000 tentativas)
+  02_indices.sql        índice extra, medido com e sem (DEC-010)
+  03_views.sql          vw_ranking_consolidado, vw_progresso_membro, vw_fila_avaliacao
+  04_regras.sql         trigger de pontuação; procedures aprovar_projeto, pedir_ajustes, enviar_projeto
+  05_povoamento.sql     carga sintética reprodutível (140.574 tentativas)
+  testes/               testes de restrições e regras (rodam com ROLLBACK)
 api/
   src/index.js          sobe o Express
   src/rotas.js          endpoints (controllers)
   src/db.js             pool de conexões do PostgreSQL
   src/cache.js          cliente Redis tolerante a falha
-  src/servicos/         regra de negócio: ranking (Cache-Aside) e aprovação (transação)
+  src/transacao.js      BEGIN/COMMIT/ROLLBACK numa conexão reservada
+  src/erros.js          SQLSTATE do banco → HTTP
+  src/servicos/         ranking (Cache-Aside), aprovação e ajustes, envio, progresso e fila
   scripts/medir.js      mediana e p95 de um endpoint
-scripts/recriar-banco.sh
+scripts/                recriar-banco, testar-banco, testar-api, medir-indice
+docs/resultados/        evidência dos gates (saída dos testes e medições)
 docker-compose.yml
 ```
 
@@ -61,15 +74,24 @@ etapa de Programação Web I).
 
 | Método | Rota | O que faz |
 |---|---|---|
-| GET | `/saude` | Confere API e PostgreSQL |
-| GET | `/ranking` | Ranking geral; lê do Redis e, se não houver, do PostgreSQL |
-| POST | `/tentativas/:id/aprovar` | Aprova um projeto numa transação; invalida o ranking depois do COMMIT |
+| GET | `/saude` | Confere API, PostgreSQL e Redis |
+| GET | `/ranking` | Ranking geral (top 100); lê do Redis e, se não houver, do PostgreSQL |
+| GET | `/fila` | Entregas de desafio aguardando parecer, no escopo do gestor |
+| POST | `/tentativas/:id/aprovar` | Aprova um desafio numa transação; invalida o ranking depois do COMMIT |
+| POST | `/tentativas/:id/ajustes` | Pede ajustes com parecer obrigatório |
+| POST | `/avaliacoes/:id/tentativas` | Membro envia o link do desafio |
+| GET | `/matriculas/:id/progresso` | Progresso e próxima atividade de uma matrícula |
+
+Contrato completo (entradas, saídas e erros): `docs/spec/03-arquitetura.md`.
 
 ```bash
-curl -H 'X-Usuario-Id: 1' http://localhost:3000/ranking
-curl -X POST -H 'X-Usuario-Id: 1' -H 'Content-Type: application/json' \
-     -d '{"parecer":"Atende aos critérios"}' http://localhost:3000/tentativas/10/aprovar
+curl -H 'X-Usuario-Id: 2' http://localhost:3000/fila
+curl -X POST -H 'X-Usuario-Id: 2' -H 'Content-Type: application/json' \
+     -d '{"parecer":"Atende aos critérios"}' http://localhost:3000/tentativas/<id>/aprovar
 ```
+
+Usuários da carga: 1 = gestor geral; 2, 3, 4 = gestores de Projetos, Marketing e Gestão de
+Pessoas; 5 a 6000 = membros.
 
 ## Medições
 
