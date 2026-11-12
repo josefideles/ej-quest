@@ -1,0 +1,28 @@
+# Experimento de cache (Cache-Aside no ranking) · 12/11/2026 15:46
+
+Ambiente: Linux 7.0.0-43-generic, 20 núcleos, 14Gi de RAM, Node v22.22.1, API, PostgreSQL 16 e Redis 7 no Docker local.
+Consulta: GET /ranking (top 100 de 5876 participantes, sobre 34103 pontuações).
+
+## Cache frio (DEL antes de cada chamada → sempre vai ao Postgres)
+```
+URL: http://localhost:3000/ranking
+Cenário: cache FRIO (DEL antes de cada chamada)
+Repetições: 50
+Origem das respostas: {"postgres":50}
+Mediana: 42.97 ms
+p95:     58.39 ms
+Média:   41.37 ms
+Mínimo:  18.84 ms   Máximo: 171.33 ms
+```
+
+## Cache quente (1ª chamada aquece, as outras leem do Redis)
+```
+URL: http://localhost:3000/ranking
+Cenário: cache QUENTE
+Repetições: 50
+Origem das respostas: {"cache":50}
+Mediana: 3.03 ms
+p95:     5.40 ms
+Média:   4.29 ms
+Mínimo:  2.25 ms   Máximo: 57.60 ms
+```

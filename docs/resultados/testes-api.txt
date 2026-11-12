@@ -1,0 +1,74 @@
+# Testes da API · 12/11/2026 15:52
+
+Entregas usadas: 126087 (membro 8, avaliação 20, matrícula 8), 126094 e 126202. Gestor de Projetos: 2.
+
+## Saúde
+> GET /saude  (X-Usuario-Id: nenhum)
+  HTTP 200  {"api": "ok", "postgres": "ok", "redis": "ok"}
+
+## Ranking (Cache-Aside): 1ª leitura vem do Postgres, 2ª do Redis
+> GET /ranking  (X-Usuario-Id: 2)
+  HTTP 200  {"origem": "postgres", "gerado_em": "2026-11-12T18:52:05.564Z", "total_participantes": 5876, "participantes": [{"posicao": 1, "id_usuario": 1121, "nome": "Bruno Dias 1121", "total_pontos": 280, "ultima_concessao": "2026-08-18T15:56:33.790Z"}, {"posicao": 2, "id_usuario": 2178, "nome": "Tiago Almeida 2178", "total_pontos": 280, "ultima_concessao": "2026-08-18T17:04:27.266Z"}, {"posicao": 3, "id_usuario": 5797, "nome": "Sofia Nascimento 5797", "total_pontos": 280, "ultima_concessao": "2026-08-18T22:12:48.888Z"}, "..."]}
+> GET /ranking  (X-Usuario-Id: 2)
+  HTTP 200  {"origem": "cache", "gerado_em": "2026-11-12T18:52:05.564Z", "total_participantes": 5876, "participantes": [{"posicao": 1, "id_usuario": 1121, "nome": "Bruno Dias 1121", "total_pontos": 280, "ultima_concessao": "2026-08-18T15:56:33.790Z"}, {"posicao": 2, "id_usuario": 2178, "nome": "Tiago Almeida 2178", "total_pontos": 280, "ultima_concessao": "2026-08-18T17:04:27.266Z"}, {"posicao": 3, "id_usuario": 5797, "nome": "Sofia Nascimento 5797", "total_pontos": 280, "ultima_concessao": "2026-08-18T22:12:48.888Z"}, "..."]}
+
+## Sem identificação
+> GET /ranking  (X-Usuario-Id: nenhum)
+  HTTP 401  {"erro": "Envie o cabeçalho X-Usuario-Id"}
+
+## Fila do gestor de Projetos
+> GET /fila  (X-Usuario-Id: 2)
+  HTTP 200  {"entregas": [{"id_tentativa": 140239, "numero": 1, "enviada_em": "2026-08-09T07:23:29.673Z", "link_projeto": "https://github.com/membro-ficticio/desafio-43069-v1", "descricao_entrega": "Entrega 1 do desafio", "trilha": "Fundamentos de Projetos", "membro": "Elisa Ribeiro 5864", "id_membro": 5864}, "... (50 no total)"]}
+
+## Aprovação: autoaprovação, gestor de fora, aprovação válida e clique duplo
+> POST /tentativas/126087/aprovar  (X-Usuario-Id: 8)
+  HTTP 403  {"erro": "autoaprovação não é permitida"}
+> POST /tentativas/126087/aprovar  (X-Usuario-Id: 3)
+  HTTP 403  {"erro": "usuário 3 não é gestor desta diretoria"}
+> POST /tentativas/126087/aprovar  (X-Usuario-Id: 2)
+  HTTP 200  {"status": "aprovada", "ranking_invalidado": true}
+> POST /tentativas/126087/aprovar  (X-Usuario-Id: 2)
+  HTTP 200  {"status": "ja_aprovada", "ranking_invalidado": false}
+  (depois da aprovação nova, o ranking foi invalidado: a próxima leitura vem do Postgres)
+> GET /ranking  (X-Usuario-Id: 2)
+  HTTP 200  {"origem": "postgres", "gerado_em": "2026-11-12T18:52:06.085Z", "total_participantes": 5876, "participantes": [{"posicao": 1, "id_usuario": 1121, "nome": "Bruno Dias 1121", "total_pontos": 280, "ultima_concessao": "2026-08-18T15:56:33.790Z"}, {"posicao": 2, "id_usuario": 2178, "nome": "Tiago Almeida 2178", "total_pontos": 280, "ultima_concessao": "2026-08-18T17:04:27.266Z"}, {"posicao": 3, "id_usuario": 5797, "nome": "Sofia Nascimento 5797", "total_pontos": 280, "ultima_concessao": "2026-08-18T22:12:48.888Z"}, "..."]}
+
+## Ajustes: sem parecer e com parecer
+> POST /tentativas/126094/ajustes  (X-Usuario-Id: 2)
+  HTTP 400  {"erro": "pedido de ajustes exige parecer"}
+> POST /tentativas/126094/ajustes  (X-Usuario-Id: 2)
+  HTTP 200  {"status": "ajustes", "ranking_invalidado": false}
+
+## Envio do desafio: depois de aprovado (RN07) e link inválido
+> POST /avaliacoes/20/tentativas  (X-Usuario-Id: 8)
+  HTTP 409  {"erro": "desafio já aprovado; não recebe novo envio"}
+> POST /avaliacoes/20/tentativas  (X-Usuario-Id: 8)
+  HTTP 400  {"erro": "link do projeto deve começar com http:// ou https://"}
+
+## Progresso: o próprio membro, um estranho e matrícula inexistente
+> GET /matriculas/8/progresso  (X-Usuario-Id: 8)
+  HTTP 200  {"id_matricula": 8, "trilha": "Desenvolvimento Web na EJ", "exigidas": 4, "concluidas": 4, "percentual": 100, "proxima": null}
+> GET /matriculas/8/progresso  (X-Usuario-Id: 9)
+  HTTP 403  {"erro": "Sem permissão para ver esta matrícula"}
+> GET /matriculas/99999999/progresso  (X-Usuario-Id: 1)
+  HTTP 404  {"erro": "Matrícula não encontrada"}
+
+## URL inválida
+> POST /tentativas/abc/aprovar  (X-Usuario-Id: 2)
+  HTTP 400  {"erro": "id inválido na URL"}
+
+## Queda do Redis (RNF06): o sistema segue pelo Postgres
+> GET /saude  (X-Usuario-Id: nenhum)
+  HTTP 200  {"api": "ok", "postgres": "ok", "redis": "indisponível"}
+> GET /ranking  (X-Usuario-Id: 2)
+  HTTP 200  {"origem": "postgres", "gerado_em": "2026-11-12T18:52:08.115Z", "total_participantes": 5876, "participantes": [{"posicao": 1, "id_usuario": 1121, "nome": "Bruno Dias 1121", "total_pontos": 280, "ultima_concessao": "2026-08-18T15:56:33.790Z"}, {"posicao": 2, "id_usuario": 2178, "nome": "Tiago Almeida 2178", "total_pontos": 280, "ultima_concessao": "2026-08-18T17:04:27.266Z"}, {"posicao": 3, "id_usuario": 5797, "nome": "Sofia Nascimento 5797", "total_pontos": 280, "ultima_concessao": "2026-08-18T22:12:48.888Z"}, "..."]}
+> POST /tentativas/126202/aprovar  (X-Usuario-Id: 2)
+  HTTP 200  {"status": "aprovada", "ranking_invalidado": false}
+  (aprovação confirmada no Postgres; ranking_invalidado: false porque o DEL não chegou ao Redis)
+  (Redis de volta)
+> GET /saude  (X-Usuario-Id: nenhum)
+  HTTP 200  {"api": "ok", "postgres": "ok", "redis": "ok"}
+> GET /ranking  (X-Usuario-Id: 2)
+  HTTP 200  {"origem": "postgres", "gerado_em": "2026-11-12T18:52:11.722Z", "total_participantes": 5876, "participantes": [{"posicao": 1, "id_usuario": 1121, "nome": "Bruno Dias 1121", "total_pontos": 280, "ultima_concessao": "2026-08-18T15:56:33.790Z"}, {"posicao": 2, "id_usuario": 2178, "nome": "Tiago Almeida 2178", "total_pontos": 280, "ultima_concessao": "2026-08-18T17:04:27.266Z"}, {"posicao": 3, "id_usuario": 5797, "nome": "Sofia Nascimento 5797", "total_pontos": 280, "ultima_concessao": "2026-08-18T22:12:48.888Z"}, "..."]}
+> GET /ranking  (X-Usuario-Id: 2)
+  HTTP 200  {"origem": "cache", "gerado_em": "2026-11-12T18:52:11.722Z", "total_participantes": 5876, "participantes": [{"posicao": 1, "id_usuario": 1121, "nome": "Bruno Dias 1121", "total_pontos": 280, "ultima_concessao": "2026-08-18T15:56:33.790Z"}, {"posicao": 2, "id_usuario": 2178, "nome": "Tiago Almeida 2178", "total_pontos": 280, "ultima_concessao": "2026-08-18T17:04:27.266Z"}, {"posicao": 3, "id_usuario": 5797, "nome": "Sofia Nascimento 5797", "total_pontos": 280, "ultima_concessao": "2026-08-18T22:12:48.888Z"}, "..."]}

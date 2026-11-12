@@ -1,0 +1,96 @@
+# Testes do banco · 12/11/2026 15:51
+
+## 1. Restrições (G-dados)
+                                 caso                                  |                                                                     resultado                                                                      
+-----------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------------------------------------------
+ 1. matrícula duplicada (RN04, UNIQUE)                                 | OK, recusado: duplicate key value violates unique constraint "matricula_uk"
+ 2. tentativa de participação inexistente (RNF01, FK)                  | OK, recusado: insert or update on table "tentativa_avaliacao" violates foreign key constraint "tentativa_avaliacao_id_participacao_fkey"
+ 3. avaliação do tipo 'prova' (CHECK)                                  | OK, recusado: new row for relation "avaliacao" violates check constraint "avaliacao_tipo_ck"
+ 4. segunda pontuação na mesma participação (RN09, PK)                 | OK, recusado: duplicate key value violates unique constraint "pontuacao_pkey"
+ 5. apagar usuário com histórico (RN17, ON DELETE RESTRICT)            | OK, recusado: update or delete on table "usuario" violates foreign key constraint "vinculo_diretoria_id_usuario_fkey" on table "vinculo_diretoria"
+ 6. e-mail repetido com outra caixa (RN01, índice em lower)            | OK, recusado: duplicate key value violates unique constraint "usuario_email_uk"
+ 7. duas alternativas corretas na mesma questão (RN05, índice parcial) | OK, recusado: duplicate key value violates unique constraint "alternativa_uma_correta_uk"
+ 8. conclusão com tentativa de OUTRA participação (FK composta)        | OK, recusado: insert or update on table "conclusao" violates foreign key constraint "conclusao_tentativa_da_participacao_fk"
+ 9. resposta com alternativa que não existe na questão (FK composta)   | OK, recusado: insert or update on table "resposta_tentativa" violates foreign key constraint "resposta_alternativa_fk"
+ 10. quiz sem nota mínima (CHECK condicional)                          | OK, recusado: new row for relation "avaliacao" violates check constraint "avaliacao_tipo_minimo_ck"
+ 11. pontos zerados (RN10, CHECK)                                      | OK, recusado: new row for relation "avaliacao" violates check constraint "avaliacao_pontos_previstos_check"
+ 12. pedido de ajustes sem parecer (CHECK)                             | OK, recusado: new row for relation "resultado_tentativa" violates check constraint "resultado_ajustes_parecer_ck"
+ 13. pedido de ajustes com parecer NULL (CHECK com NULL)               | OK, recusado: new row for relation "resultado_tentativa" violates check constraint "resultado_ajustes_parecer_ck"
+
+
+## 2. Regras (G-regra)
+Entrega usada no teste: tentativa 126087 , participação 35981 , dono 8 , gestor 2
+
+--- Permissão e estado (procedure recusa)
+                       caso                        |                                          resultado                                          
+---------------------------------------------------+---------------------------------------------------------------------------------------------
+ autoaprovação (o dono aprova a própria entrega)   | OK, recusado [EJ403]: autoaprovação não é permitida
+ gestor de OUTRA diretoria aprova                  | OK, recusado [EJ403]: usuário 3 não é gestor desta diretoria
+ aprovar uma tentativa de quiz                     | OK, recusado [EJ409]: só desafios (projeto) recebem parecer; quiz é corrigido pelo servidor
+ aprovar tentativa que não existe                  | OK, recusado [EJ404]: tentativa 99999999 não existe
+ pedir ajustes sem parecer                         | OK, recusado [EJ400]: pedido de ajustes exige parecer
+ novo envio com outro já aguardando parecer (RN08) | OK, recusado [EJ409]: já existe um envio aguardando parecer
+
+
+--- Atomicidade (RNF02): falha provocada DEPOIS da procedure, antes do COMMIT
+ p_status 
+----------
+ aprovada
+
+               momento               | resultado | conclusao | pontuacao 
+-------------------------------------+-----------+-----------+-----------
+ dentro da transação, antes da falha |         1 |         1 |         1
+
+      momento       | resultado | conclusao | pontuacao 
+--------------------+-----------+-----------+-----------
+ depois do ROLLBACK |         0 |         0 |         0
+
+
+--- Idempotência (RN09): o gestor aprova duas vezes (clique duplo)
+ p_status 
+----------
+ aprovada
+
+  p_status   
+-------------
+ ja_aprovada
+
+ conclusoes | pontuacoes | pontos 
+------------+------------+--------
+          1 |          1 |     80
+
+
+--- Depois de aprovado, o desafio não recebe novo envio (RN07)
+             caso             |                                resultado                                
+------------------------------+-------------------------------------------------------------------------
+ novo envio após aprovação    | OK, recusado [EJ409]: desafio já aprovado; não recebe novo envio
+ pedir ajustes após aprovação | OK, recusado [EJ409]: participação já concluída; não cabe pedir ajustes
+
+
+--- RN06: desafio antes de concluir os quizzes
+                  caso                   |                              resultado                              
+-----------------------------------------+---------------------------------------------------------------------
+ membro sem os 3 quizzes envia o desafio | OK, recusado [EJ409]: faltam 2 quiz(zes) da trilha antes do desafio
+
+
+## 3. Concorrência: dois gestores aprovam a MESMA entrega ao mesmo tempo (RNF03)
+Entrega: tentativa 140573 (participação 43229). Aprovadores: gestor 3 (sessão A) e gestor geral 1 (sessão B).
+
+Sessão A (a linha 'aprovada' é o p_status devolvido pela procedure):
+  BEGIN
+  aprovada
+  A: 15:51:33.996 aprovou e segura o bloqueio por 3 s
+  
+  COMMIT
+  A: 15:51:37.005 COMMIT
+Sessão B (repare no horário: ela esperou o COMMIT de A e recebeu 'ja_aprovada'):
+  B: 15:51:35.002 chegou e pediu a aprovação
+  ja_aprovada
+  B: 15:51:37.010 destravou
+
+Resultado final no banco (esperado: 1, 1, 1):
+ resultados | conclusoes | pontuacoes | quem_aprovou 
+------------+------------+------------+--------------
+          1 |          1 |          1 |            3
+(1 row)
+

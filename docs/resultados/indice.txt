@@ -1,0 +1,88 @@
+# Experimento de índice · 12/11/2026 15:51
+
+Ambiente: Linux 7.0.0-43-generic, 20 núcleos, 14Gi de RAM, PostgreSQL 16 no Docker.
+Carga: 140574 linhas em tentativa_avaliacao (db/05_povoamento.sql, semente 0.42).
+
+## Cenário A: COM idx_tentativa_enviada_em
+NOTICE:  relation "idx_tentativa_enviada_em" already exists, skipping
+### Consulta 1: as 20 entregas mais recentes
+```sql
+SELECT id_tentativa, id_participacao, enviada_em FROM tentativa_avaliacao ORDER BY enviada_em DESC LIMIT 20;
+```
+Tempos (ms): 0.171 0.165 0.198 0.13 0.163
+Mediana: 0.165 ms
+```
+Limit  (cost=0.42..1.68 rows=20 width=24) (actual time=0.038..0.123 rows=20 loops=1)
+  Buffers: shared hit=23
+  ->  Index Scan Backward using idx_tentativa_enviada_em on tentativa_avaliacao  (cost=0.42..8857.24 rows=140574 width=24) (actual time=0.036..0.119 rows=20 loops=1)
+        Buffers: shared hit=23
+Planning:
+  Buffers: shared hit=131
+Planning Time: 0.595 ms
+Execution Time: 0.155 ms
+```
+
+### Consulta 2: entregas dos últimos 30 dias
+```sql
+SELECT count(*) FROM tentativa_avaliacao WHERE enviada_em >= timestamptz '2026-11-12 12:00-03' - interval '30 days';
+```
+Tempos (ms): 7.289 6.786 6.191 7.629 7.301
+Mediana: 7.289 ms
+```
+Aggregate  (cost=1665.57..1665.58 rows=1 width=8) (actual time=6.208..6.209 rows=1 loops=1)
+  Buffers: shared hit=1150
+  ->  Bitmap Heap Scan on tentativa_avaliacao  (cost=275.00..1635.06 rows=12204 width=0) (actual time=1.372..5.347 rows=12468 loops=1)
+        Recheck Cond: (enviada_em >= ('2026-11-12 12:00:00-03'::timestamp with time zone - '30 days'::interval))
+        Heap Blocks: exact=1106
+        Buffers: shared hit=1150
+        ->  Bitmap Index Scan on idx_tentativa_enviada_em  (cost=0.00..271.95 rows=12204 width=0) (actual time=1.145..1.145 rows=12468 loops=1)
+              Index Cond: (enviada_em >= ('2026-11-12 12:00:00-03'::timestamp with time zone - '30 days'::interval))
+              Buffers: shared hit=44
+Planning:
+  Buffers: shared hit=120
+Planning Time: 0.484 ms
+Execution Time: 6.276 ms
+```
+
+## Cenário B: SEM o índice
+### Consulta 1: as 20 entregas mais recentes
+```sql
+SELECT id_tentativa, id_participacao, enviada_em FROM tentativa_avaliacao ORDER BY enviada_em DESC LIMIT 20;
+```
+Tempos (ms): 39.761 42.085 41.528 42.993 39.342
+Mediana: 41.528 ms
+```
+Limit  (cost=6323.36..6323.41 rows=20 width=24) (actual time=43.287..43.292 rows=20 loops=1)
+  Buffers: shared hit=1180
+  ->  Sort  (cost=6323.36..6674.80 rows=140574 width=24) (actual time=43.285..43.287 rows=20 loops=1)
+        Sort Key: enviada_em DESC
+        Sort Method: top-N heapsort  Memory: 26kB
+        Buffers: shared hit=1180
+        ->  Seq Scan on tentativa_avaliacao  (cost=0.00..2582.74 rows=140574 width=24) (actual time=0.011..20.622 rows=140574 loops=1)
+              Buffers: shared hit=1177
+Planning:
+  Buffers: shared hit=113
+Planning Time: 0.575 ms
+Execution Time: 43.338 ms
+```
+
+### Consulta 2: entregas dos últimos 30 dias
+```sql
+SELECT count(*) FROM tentativa_avaliacao WHERE enviada_em >= timestamptz '2026-11-12 12:00-03' - interval '30 days';
+```
+Tempos (ms): 37.238 33.256 37.298 34.743 34.878
+Mediana: 34.878 ms
+```
+Aggregate  (cost=3316.12..3316.13 rows=1 width=8) (actual time=35.067..35.067 rows=1 loops=1)
+  Buffers: shared hit=1177
+  ->  Seq Scan on tentativa_avaliacao  (cost=0.00..3285.61 rows=12204 width=0) (actual time=0.019..34.165 rows=12468 loops=1)
+        Filter: (enviada_em >= ('2026-11-12 12:00:00-03'::timestamp with time zone - '30 days'::interval))
+        Rows Removed by Filter: 128106
+        Buffers: shared hit=1177
+Planning:
+  Buffers: shared hit=98
+Planning Time: 0.552 ms
+Execution Time: 35.124 ms
+```
+
+Índice recriado no fim do experimento.
