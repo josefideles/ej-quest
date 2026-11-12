@@ -1,0 +1,7 @@
+# DEC-010 · Índice do experimento trocado depois da medição
+
+- **Contexto:** o planejamento previa `idx_tentativa_participacao_data (id_participacao, enviada_em)` como índice do experimento (RNF05). Medido em 12/11/2026 com 140.574 tentativas: 0,28 ms com o índice e 0,25 ms sem. As restrições `UNIQUE (id_participacao, numero)` e `UNIQUE (id_participacao, id_tentativa)` já criam índices que começam por `id_participacao`, e o planejador usa um deles. O índice planejado não acrescentava nada.
+- **Decisão:** o índice extra passa a ser `idx_tentativa_enviada_em (enviada_em)`, que serve às consultas "entregas mais recentes" e "entregas por período" (painel do gestor). O planejado sai do schema.
+- **Evidência:** `docs/resultados/indice.txt` (`scripts/medir-indice.sh`). Medianas de 5 execuções: as 20 entregas mais recentes caem de 41,5 ms (Seq Scan e ordenação) para 0,17 ms (Index Scan Backward). A contagem dos últimos 30 dias, com 8,9% das linhas, cai de 34,9 ms para 7,3 ms (Index Only Scan): ganho menor, porque a consulta é menos seletiva. Os números variam alguns milissegundos entre rodadas; vale o arquivo de evidência.
+- **Alternativas:** manter o índice planejado e apresentar o ganho nulo (descartada como índice do projeto, mas a história vale para a apresentação: medir antes de afirmar, constituição item 8).
+- **Quem decidiu:** agente, com base na medição (DEC-009) · **Data:** 12/11/2026 · **Situação:** vigente

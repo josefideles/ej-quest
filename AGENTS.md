@@ -50,6 +50,6 @@ Este arquivo é o ponto de entrada. Leia antes de qualquer mudança.
 5. Bug: parar, diagnosticar primeiro (só diagnóstico), depois corrigir só o que o diagnóstico
    mostrou. Duas tentativas sem progresso = parar e conversar.
 6. Pacote novo só depois de conferir no npm (autor, downloads, data). Nada de nome inventado.
-7. **Trabalho em par:** o Fideles precisa entender cada linha para apresentar. Antes de escrever
-   um bloco, explique o que ele faz e qual requisito cobre; depois de escrever, atualize o capítulo
-   do manual correspondente (seção "Como ficou no projeto").
+7. **O Fideles precisa entender cada linha para apresentar.** Desde 12/11/2026 (DEC-009) o agente
+   implementa e o Fideles estuda: comente o porquê no código (não o óbvio), diga no cabeçalho do
+   arquivo quem escreveu e atualize o capítulo do manual correspondente na mesma entrega.
