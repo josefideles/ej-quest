@@ -4,10 +4,11 @@
 const express = require('express');
 const { pool } = require('./db');
 const cache = require('./cache');
-const { exigirUsuario } = require('./usuario-simulado');
-const { obterRanking } = require('./servicos/ranking');
+const { exigirUsuario } = require('./autenticacao');
+const { obterRanking, obterMinhaPosicao } = require('./servicos/ranking');
 const { aprovarProjeto, pedirAjustes } = require('./servicos/aprovacao');
 const { enviarProjeto, obterProgresso, obterFila } = require('./servicos/participacao');
+const estudo = require('./servicos/estudo');
 
 const rotas = express.Router();
 
@@ -35,9 +36,56 @@ rotas.get('/saude', async (req, res) => {
   }
 });
 
-// RF11 · ranking geral (Cache-Aside)
+// RF01 · login: e-mail e senha → token assinado (válido por 8 h)
+rotas.post('/login', rota(async (req, res) => {
+  const { email, senha } = req.body || {};
+  res.json(await estudo.entrar({ email, senha }));
+}));
+
+// RF01 · encerrar sessão. O token não fica guardado no servidor (é assinado, não armazenado):
+// sair é o front apagar o token. A rota existe para o front ter um ponto único de saída.
+rotas.post('/logout', (req, res) => res.status(204).end());
+
+// Quem sou eu: perfil, papéis por diretoria e matrículas
+rotas.get('/eu', exigirUsuario, rota(async (req, res) => {
+  res.json(await estudo.meuPerfil(req.usuarioId));
+}));
+
+// RF10 · portfólio interno: desafios aprovados, com link e parecer
+rotas.get('/eu/portfolio', exigirUsuario, rota(async (req, res) => {
+  res.json(await estudo.portfolio(req.usuarioId));
+}));
+
+// RF05 · trilha com módulos, lições e avaliações (e o status de cada uma para quem pediu)
+rotas.get('/trilhas/:id', exigirUsuario, rota(async (req, res) => {
+  const idTrilha = idDaUrl(req, res);
+  if (!idTrilha) return;
+  res.json(await estudo.trilha({ idTrilha, idUsuario: req.usuarioId }));
+}));
+
+// RF06 · quiz para responder (sem gabarito)
+rotas.get('/avaliacoes/:id', exigirUsuario, rota(async (req, res) => {
+  const idAvaliacao = idDaUrl(req, res);
+  if (!idAvaliacao) return;
+  res.json(await estudo.quiz({ idAvaliacao, idUsuario: req.usuarioId }));
+}));
+
+// RF06 · enviar as respostas do quiz. Corpo: { "respostas": [{ "id_questao": 1, "alternativa": 3 }, ...] }
+rotas.post('/avaliacoes/:id/respostas', exigirUsuario, rota(async (req, res) => {
+  const idAvaliacao = idDaUrl(req, res);
+  if (!idAvaliacao) return;
+  const respostas = req.body && req.body.respostas;
+  res.status(201).json(await estudo.responderQuiz({ idUsuario: req.usuarioId, idAvaliacao, respostas }));
+}));
+
+// RF11 · ranking geral, top 100 (Cache-Aside)
 rotas.get('/ranking', exigirUsuario, rota(async (req, res) => {
   res.json(await obterRanking());
+}));
+
+// RF11 · posição de quem está logado (Sorted Set no Redis, Write-Through, DEC-012)
+rotas.get('/ranking/eu', exigirUsuario, rota(async (req, res) => {
+  res.json(await obterMinhaPosicao(req.usuarioId));
 }));
 
 // RF08 · gestor aprova um desafio. Corpo: { "parecer": "texto" }

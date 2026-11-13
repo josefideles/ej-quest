@@ -1,20 +1,23 @@
-// Ranking geral com o padrão Cache-Aside (RF11, RNF06, DEC-005).
-// Escrito pelo agente em 12/11/2026 a partir do roteiro do Fideles (DEC-009).
+// Ranking: dois padrões de sincronização entre PostgreSQL e Redis (RF11, RNF06).
+// Escrito pelo agente em 12/11/2026 a partir do roteiro do Fideles (DEC-005, DEC-009, DEC-012).
 //
-//   1. tenta ler do Redis (timeout curto em cache.js)
-//   2. achou (cache hit)  → devolve, com origem 'cache'
-//   3. não achou (miss, expirou ou Redis fora) → consulta o PostgreSQL pela view,
-//      tenta gravar no Redis com TTL e devolve, com origem 'postgres'
+// 1) TOP 100 (GET /ranking) · Cache-Aside, string JSON com TTL de 60 s
+//    lê o Redis → não achou → consulta o PostgreSQL → grava no Redis → devolve
+//
+// 2) MINHA POSIÇÃO (GET /ranking/eu) · Sorted Set + Write-Through
+//    o placar ZSET tem todos os participantes; a aprovação atualiza o score do membro
+//    logo depois do COMMIT (aprovacao.js). A posição sai de um ZREVRANK, em O(log N).
 //
 // Perguntas que caem:
-//   - Por que o Redis não é a fonte oficial? Porque ele guarda uma CÓPIA calculada e
-//     descartável (sem disco, TTL de 60 s). Se sumir, este arquivo refaz a partir do SQL.
+//   - Por que o Redis não é a fonte oficial? Porque guarda CÓPIAS calculadas e descartáveis
+//     (sem disco, com TTL). Se sumir, este arquivo refaz tudo a partir do SQL.
+//   - Por que dois padrões? Cada um serve a uma leitura: o top 100 é igual para todos e muda
+//     pouco (cache pronto); a posição é diferente para cada um dos ~5.900 participantes e
+//     precisaria numerar o ranking inteiro a cada consulta no SQL (o ZSET já guarda ordenado).
 //   - E se uma aprovação entrar entre a consulta ao Postgres e o SET no Redis? (corrida)
-//     O ranking gravado fica velho por até 60 s (TTL). É o preço aceito do Cache-Aside:
-//     atraso limitado, nunca dado inventado. A tela mostra "atualizado há X s".
-//   - Por que não renovar o TTL a cada leitura? Porque aí um ranking velho poderia viver
-//     para sempre enquanto alguém continuasse lendo.
-const { pool } = require('../db');
+//     O top 100 gravado fica velho por até 60 s (TTL). Atraso limitado, nunca dado inventado.
+const sql = require('../repositorios/postgres');
+const placar = require('../repositorios/placar-redis');
 const cache = require('../cache');
 const { ErroHttp } = require('../erros');
 
@@ -22,14 +25,7 @@ const CHAVE_RANKING = 'ranking:geral:v1';
 const TTL_SEGUNDOS = 60;
 const TAMANHO = 100; // a tela mostra o top 100; o total de participantes vai junto
 
-// RN12: total desc, última concessão asc (quem chegou primeiro), id asc (desempate final).
-const SQL_RANKING = `
-  SELECT id_usuario, nome, total_pontos, ultima_concessao,
-         count(*) OVER ()::int AS total_participantes
-  FROM vw_ranking_consolidado
-  ORDER BY total_pontos DESC, ultima_concessao ASC, id_usuario ASC
-  LIMIT $1`;
-
+// ------------------------------------------------------------------ 1) Cache-Aside
 async function obterRanking() {
   const doCache = await cache.ler(CHAVE_RANKING);
   if (doCache) {
@@ -38,7 +34,7 @@ async function obterRanking() {
 
   let linhas;
   try {
-    ({ rows: linhas } = await pool.query(SQL_RANKING, [TAMANHO]));
+    linhas = await sql.topRanking(TAMANHO);
   } catch (erro) {
     // Sem cache e sem Postgres: não inventa ranking (constituição, item 7).
     console.error('[ranking] PostgreSQL indisponível:', erro.message);
@@ -62,4 +58,59 @@ async function obterRanking() {
   return { origem: 'postgres', ...ranking };
 }
 
-module.exports = { obterRanking, CHAVE_RANKING, TTL_SEGUNDOS };
+// ------------------------------------------------------------------ 2) Sorted Set
+// Garante que o placar existe; se não existir, reconstrói a partir do PostgreSQL.
+async function garantirPlacar() {
+  if (await cache.comTimeout(placar.existe())) return 'cache';
+  const linhas = await sql.rankingCompleto();
+  await cache.comTimeout(placar.reconstruir(linhas));
+  return 'reconstruido';
+}
+
+async function obterMinhaPosicao(idUsuario) {
+  try {
+    const situacao = await garantirPlacar();
+    const pos = await cache.comTimeout(placar.posicaoDe(idUsuario));
+    return { origem: situacao === 'cache' ? 'redis' : 'redis (placar reconstruído)', id_usuario: idUsuario, ...pos };
+  } catch (erro) {
+    // Redis fora ou lento: a mesma resposta, calculada pelo SQL (RNF06).
+    console.warn('[ranking] placar indisponível, calculando pelo PostgreSQL:', erro.message);
+  }
+  const linha = await sql.posicaoPorSql(idUsuario);
+  if (linha) return { origem: 'postgres', id_usuario: idUsuario, ...linha };
+  return { origem: 'postgres', id_usuario: idUsuario, posicao: null, total_pontos: 0,
+           total_participantes: await sql.contarParticipantes() };
+}
+
+// Write-Through: chamado DEPOIS do COMMIT de uma aprovação nova.
+// Devolve true se o placar foi atualizado; false se o Redis estava fora ou o placar não
+// existia (nos dois casos, a próxima leitura reconstrói a partir do PostgreSQL).
+async function atualizarPlacarDe(idUsuario) {
+  try {
+    const linha = await sql.rankingDoUsuario(idUsuario);
+    if (!linha) return false; // usuário desligado: some do placar na próxima reconstrução
+    return await cache.comTimeout(
+      placar.gravarSeExistir(idUsuario, linha.total_pontos, linha.ultima_concessao)
+    );
+  } catch (erro) {
+    console.warn('[ranking] falha no Write-Through do placar:', erro.message);
+    return false;
+  }
+}
+
+// Depois do COMMIT de qualquer operação que gerou pontos (desafio aprovado ou quiz aprovado):
+//   1. Cache-Aside: DEL do top 100;  2. Write-Through: ZADD do novo score do membro no placar.
+async function sincronizarAposPontos(idMembro) {
+  const rankingInvalidado = await cache.apagar(CHAVE_RANKING);
+  const placarAtualizado = idMembro ? await atualizarPlacarDe(idMembro) : false;
+  return { ranking_invalidado: rankingInvalidado, placar_atualizado: placarAtualizado };
+}
+
+module.exports = {
+  obterRanking,
+  obterMinhaPosicao,
+  atualizarPlacarDe,
+  sincronizarAposPontos,
+  CHAVE_RANKING,
+  TTL_SEGUNDOS,
+};

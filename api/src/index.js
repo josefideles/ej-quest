@@ -2,19 +2,36 @@
 const express = require('express');
 const rotas = require('./rotas');
 const cache = require('./cache');
-const { usuarioSimulado } = require('./usuario-simulado');
+const { identificar } = require('./autenticacao');
 
 const app = express();
+
+// CORS: o front (React, outra porta ou outro domínio) só consegue chamar a API se ela
+// autorizar a origem. É o papel do pacote "cors" usado nas aulas 12 a 14 de PW1; aqui está
+// escrito à mão, sem dependência, para ficar visível o que ele faz.
+const ORIGENS = (process.env.CORS_ORIGENS || 'http://localhost:5173').split(',');
+app.use((req, res, next) => {
+  const origem = req.get('Origin');
+  if (origem && ORIGENS.includes(origem)) {
+    res.set('Access-Control-Allow-Origin', origem);
+    res.set('Vary', 'Origin');
+    res.set('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Usuario-Id');
+  }
+  if (req.method === 'OPTIONS') return res.sendStatus(204); // pré-voo (preflight) do navegador
+  next();
+});
+
 app.use(express.json());
-app.use(usuarioSimulado);
+app.use(identificar); // token (Authorization: Bearer) ou, no modo demonstração, X-Usuario-Id
 app.use(rotas);
 
-// Erro "ainda não implementado" (os serviços que você vai escrever começam assim).
-// Qualquer outro erro vira 500 com a mensagem no log.
+// Rota que não existe: 404 em JSON (constituição, item 7).
+app.use((req, res) => res.status(404).json({ erro: 'Rota não encontrada' }));
+
+// Tratador central de erros: erro com status conhecido vira esse status; o resto vira 500
+// com detalhe só no log, nunca na resposta.
 app.use((erro, req, res, next) => {
-  if (erro.naoImplementado) {
-    return res.status(501).json({ erro: erro.message });
-  }
   if (erro.status) {
     return res.status(erro.status).json({ erro: erro.message });
   }

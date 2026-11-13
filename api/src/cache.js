@@ -74,4 +74,4 @@ async function apagar(chave) {
   }
 }
 
-module.exports = { conectar, ler, gravar, apagar, cliente };
+module.exports = { conectar, ler, gravar, apagar, cliente, comTimeout };
