@@ -10,7 +10,7 @@
 #    ./scripts/recriar-banco.sh
 set -euo pipefail
 cd "$(dirname "$0")/.."
-set -a; source .env; set +a
+. scripts/_ambiente.sh
 
 saida="docs/resultados/testes-banco.txt"
 mkdir -p docs/resultados
@@ -38,7 +38,7 @@ psql_db() {
 
   # Sessão A: aprova e SEGURA a transação aberta por 3 s antes do COMMIT.
   psql_db -At -c "BEGIN;
-    CALL aprovar_projeto($t, $gestor, 'aprovado pela sessão A');
+    CALL sp_aprovar_projeto($t, $gestor, 'aprovado pela sessão A');
     SELECT 'A: ' || to_char(clock_timestamp(), 'HH24:MI:SS.MS') || ' aprovou e segura o bloqueio por 3 s';
     SELECT pg_sleep(3);
     COMMIT;
@@ -47,7 +47,7 @@ psql_db() {
 
   # Sessão B: chega 1 s depois. Tem que ESPERAR o bloqueio e então ver que já foi aprovada.
   psql_db -At -c "SELECT 'B: ' || to_char(clock_timestamp(), 'HH24:MI:SS.MS') || ' chegou e pediu a aprovação';
-    CALL aprovar_projeto($t, 1, 'aprovado pela sessão B');
+    CALL sp_aprovar_projeto($t, 1, 'aprovado pela sessão B');
     SELECT 'B: ' || to_char(clock_timestamp(), 'HH24:MI:SS.MS') || ' destravou';" > "$arq_b"
   wait
 

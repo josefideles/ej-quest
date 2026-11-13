@@ -32,23 +32,32 @@ $$;
 \echo ''
 \echo '--- Permissão e estado (procedure recusa)'
 SELECT * FROM pg_temp.deve_falhar('autoaprovação (o dono aprova a própria entrega)',
-  format('CALL aprovar_projeto(%s, %s, %L)', :t, :dono, 'eu mesmo'))
+  format('CALL sp_aprovar_projeto(%s, %s, %L)', :t, :dono, 'eu mesmo'))
 UNION ALL SELECT * FROM pg_temp.deve_falhar('gestor de OUTRA diretoria aprova',
-  format('CALL aprovar_projeto(%s, %s, %L)', :t, :outro_gestor, 'ok'))
+  format('CALL sp_aprovar_projeto(%s, %s, %L)', :t, :outro_gestor, 'ok'))
 UNION ALL SELECT * FROM pg_temp.deve_falhar('aprovar uma tentativa de quiz',
-  format('CALL aprovar_projeto(%s, %s, %L)', :t_quiz, 1, 'ok'))
+  format('CALL sp_aprovar_projeto(%s, %s, %L)', :t_quiz, 1, 'ok'))
 UNION ALL SELECT * FROM pg_temp.deve_falhar('aprovar tentativa que não existe',
-  format('CALL aprovar_projeto(%s, %s, %L)', 99999999, 1, 'ok'))
+  format('CALL sp_aprovar_projeto(%s, %s, %L)', 99999999, 1, 'ok'))
 UNION ALL SELECT * FROM pg_temp.deve_falhar('pedir ajustes sem parecer',
-  format('CALL pedir_ajustes(%s, %s, %L)', :t, :gestor, ''))
+  format('CALL sp_pedir_ajustes(%s, %s, %L)', :t, :gestor, ''))
 UNION ALL SELECT * FROM pg_temp.deve_falhar('novo envio com outro já aguardando parecer (RN08)',
-  format('CALL enviar_projeto(%s, %s, %L, %L)',
+  format('CALL sp_enviar_projeto(%s, %s, %L, %L)',
          :dono, :desafio_dono, 'https://exemplo.test/v9', 'de novo'));
+
+\echo ''
+\echo '--- Imutabilidade (RN18): trigger BEFORE UPDATE OR DELETE'
+SELECT * FROM pg_temp.deve_falhar('alterar os pontos de uma pontuação',
+  'UPDATE pontuacao SET pontos = 999 WHERE id_participacao = (SELECT min(id_participacao) FROM pontuacao)')
+UNION ALL SELECT * FROM pg_temp.deve_falhar('apagar uma conclusão',
+  'DELETE FROM conclusao WHERE id_participacao = (SELECT min(id_participacao) FROM conclusao)')
+UNION ALL SELECT * FROM pg_temp.deve_falhar('trocar a decisão de um resultado',
+  $q$UPDATE resultado_tentativa SET decisao = 'aprovada' WHERE id_tentativa = (SELECT min(id_tentativa) FROM resultado_tentativa WHERE decisao = 'reprovada')$q$);
 
 \echo ''
 \echo '--- Atomicidade (RNF02): falha provocada DEPOIS da procedure, antes do COMMIT'
 SAVEPOINT antes_da_falha;
-CALL aprovar_projeto(:t, :gestor, 'aprovado, mas a transação vai falhar');
+CALL sp_aprovar_projeto(:t, :gestor, 'aprovado, mas a transação vai falhar');
 SELECT 'dentro da transação, antes da falha' AS momento,
        (SELECT count(*) FROM resultado_tentativa WHERE id_tentativa = :t) AS resultado,
        (SELECT count(*) FROM conclusao WHERE id_participacao = :p) AS conclusao,
@@ -61,8 +70,8 @@ SELECT 'depois do ROLLBACK' AS momento,
 
 \echo ''
 \echo '--- Idempotência (RN09): o gestor aprova duas vezes (clique duplo)'
-CALL aprovar_projeto(:t, :gestor, 'Ótimo trabalho');
-CALL aprovar_projeto(:t, :gestor, 'Ótimo trabalho');
+CALL sp_aprovar_projeto(:t, :gestor, 'Ótimo trabalho');
+CALL sp_aprovar_projeto(:t, :gestor, 'Ótimo trabalho');
 SELECT (SELECT count(*) FROM conclusao WHERE id_participacao = :p) AS conclusoes,
        (SELECT count(*) FROM pontuacao WHERE id_participacao = :p) AS pontuacoes,
        (SELECT pontos FROM pontuacao WHERE id_participacao = :p) AS pontos;
@@ -70,10 +79,10 @@ SELECT (SELECT count(*) FROM conclusao WHERE id_participacao = :p) AS conclusoes
 \echo ''
 \echo '--- Depois de aprovado, o desafio não recebe novo envio (RN07)'
 SELECT * FROM pg_temp.deve_falhar('novo envio após aprovação',
-  format('CALL enviar_projeto(%s, %s, %L, %L)',
+  format('CALL sp_enviar_projeto(%s, %s, %L, %L)',
          :dono, :desafio_dono, 'https://exemplo.test/v10', 'mais um'))
 UNION ALL SELECT * FROM pg_temp.deve_falhar('pedir ajustes após aprovação',
-  format('CALL pedir_ajustes(%s, %s, %L)', :t, :gestor, 'mude a cor'));
+  format('CALL sp_pedir_ajustes(%s, %s, %L)', :t, :gestor, 'mude a cor'));
 
 \echo ''
 \echo '--- RN06: desafio antes de concluir os quizzes'
@@ -86,6 +95,6 @@ WHERE (SELECT count(*) FROM participacao_avaliacao pa JOIN conclusao c USING (id
        WHERE pa.id_matricula = m.id_matricula) < 3
 ORDER BY m.id_matricula LIMIT 1 \gset
 SELECT * FROM pg_temp.deve_falhar('membro sem os 3 quizzes envia o desafio',
-  format('CALL enviar_projeto(%s, %s, %L, %L)', :sem_quiz, :desafio, 'https://exemplo.test/cedo', 'cedo demais'));
+  format('CALL sp_enviar_projeto(%s, %s, %L, %L)', :sem_quiz, :desafio, 'https://exemplo.test/cedo', 'cedo demais'));
 
 ROLLBACK;

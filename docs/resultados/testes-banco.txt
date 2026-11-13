@@ -1,4 +1,4 @@
-# Testes do banco · 12/11/2026 15:51
+# Testes do banco · 12/11/2026 22:42
 
 ## 1. Restrições (G-dados)
                                  caso                                  |                                                                     resultado                                                                      
@@ -30,6 +30,14 @@ Entrega usada no teste: tentativa 126087 , participação 35981 , dono 8 , gesto
  aprovar tentativa que não existe                  | OK, recusado [EJ404]: tentativa 99999999 não existe
  pedir ajustes sem parecer                         | OK, recusado [EJ400]: pedido de ajustes exige parecer
  novo envio com outro já aguardando parecer (RN08) | OK, recusado [EJ409]: já existe um envio aguardando parecer
+
+
+--- Imutabilidade (RN18): trigger BEFORE UPDATE OR DELETE
+                caso                |                                            resultado                                             
+------------------------------------+--------------------------------------------------------------------------------------------------
+ alterar os pontos de uma pontuação | OK, recusado [EJ409]: pontuacao é histórico e não pode ser alterado nem apagado (RN18)
+ apagar uma conclusão               | OK, recusado [EJ409]: conclusao é histórico e não pode ser alterado nem apagado (RN18)
+ trocar a decisão de um resultado   | OK, recusado [EJ409]: resultado_tentativa é histórico e não pode ser alterado nem apagado (RN18)
 
 
 --- Atomicidade (RNF02): falha provocada DEPOIS da procedure, antes do COMMIT
@@ -79,14 +87,14 @@ Entrega: tentativa 140573 (participação 43229). Aprovadores: gestor 3 (sessão
 Sessão A (a linha 'aprovada' é o p_status devolvido pela procedure):
   BEGIN
   aprovada
-  A: 15:51:33.996 aprovou e segura o bloqueio por 3 s
+  A: 22:42:36.720 aprovou e segura o bloqueio por 3 s
   
   COMMIT
-  A: 15:51:37.005 COMMIT
+  A: 22:42:39.728 COMMIT
 Sessão B (repare no horário: ela esperou o COMMIT de A e recebeu 'ja_aprovada'):
-  B: 15:51:35.002 chegou e pediu a aprovação
+  B: 22:42:37.785 chegou e pediu a aprovação
   ja_aprovada
-  B: 15:51:37.010 destravou
+  B: 22:42:39.736 destravou
 
 Resultado final no banco (esperado: 1, 1, 1):
  resultados | conclusoes | pontuacoes | quem_aprovou 

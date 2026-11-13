@@ -8,7 +8,7 @@
 # Paralelismo desligado para a comparação ser justa (um processo só nos dois cenários).
 set -euo pipefail
 cd "$(dirname "$0")/.."
-set -a; source .env; set +a
+. scripts/_ambiente.sh
 
 saida="docs/resultados/indice.txt"
 mkdir -p docs/resultados
@@ -27,8 +27,7 @@ medir() {
   # 5 execuções: a primeira aquece o cache do Postgres; vale a mediana das 5.
   local tempos=()
   for _ in 1 2 3 4 5; do
-    tempos+=("$(psql_db -At -c "EXPLAIN (ANALYZE, FORMAT JSON) $sql" \
-      | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Execution Time"])')")
+    tempos+=("$(psql_db -At -c "EXPLAIN (ANALYZE) $sql" | sed -n 's/^Execution Time: \([0-9.]*\) ms$/\1/p')")
   done
   echo "Tempos (ms): ${tempos[*]}"
   printf 'Mediana: %s ms\n' "$(printf '%s\n' "${tempos[@]}" | sort -g | sed -n 3p)"
