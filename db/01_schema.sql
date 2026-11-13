@@ -13,13 +13,17 @@
 -- Convenção: chave substituta "id_<tabela> bigint GENERATED ALWAYS AS IDENTITY".
 -- O banco gera o número; ninguém consegue inserir um id "na mão" por engano.
 
+-- pgcrypto: extensão que vem com o PostgreSQL. Dá crypt() e gen_salt('bf'), que geram e
+-- conferem hash bcrypt de senha DENTRO do banco (RF01, RNF04). Nenhuma dependência nova na API.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- ================================================================== ACESSO
 
 CREATE TABLE usuario (
     id_usuario    bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     nome          text        NOT NULL CHECK (length(btrim(nome)) > 0),
     email         text        NOT NULL CHECK (email LIKE '%_@_%'),
-    senha_hash    text        NOT NULL,                     -- nunca a senha pura (RNF04)
+    senha_hash    text        NOT NULL,                     -- bcrypt via crypt(); nunca a senha pura (RNF04)
     ativo         boolean     NOT NULL DEFAULT true,        -- RN17: desligar = false, nunca DELETE
     gestor_geral  boolean     NOT NULL DEFAULT false,
     criado_em     timestamptz NOT NULL DEFAULT now()

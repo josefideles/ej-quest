@@ -27,6 +27,7 @@ INSERT INTO diretoria (nome) VALUES ('Projetos'), ('Marketing'), ('Gestão de Pe
 
 -- ------------------------------------------------------------------ 2. usuários
 -- id 1: gestor geral · ids 2, 3, 4: gestores de Projetos, Marketing e Gestão de Pessoas
+-- Login de qualquer usuário da carga: e-mail usuarioN@ejquest.test, senha ejquest123 (só demonstração).
 -- ids 5 a 6000: membros. 1 em cada 50 membros está desligado (ativo = false), para o RN17.
 INSERT INTO usuario (nome, email, senha_hash, ativo, gestor_geral)
 SELECT CASE n
@@ -42,7 +43,8 @@ SELECT CASE n
               || ' ' || lpad(n::text, 4, '0')
        END,
        'usuario' || n || '@ejquest.test',
-       'hash-ficticio-da-carga',                 -- login real (bcrypt) entra na fase de PW1
+       (SELECT crypt('ejquest123', gen_salt('bf', 8))),   -- senha de demonstração (bcrypt), igual
+                                                         -- para todos: o hash é calculado UMA vez
        NOT (n > 4 AND n % 50 = 0),
        n = 1
 FROM generate_series(1, 6000) AS n

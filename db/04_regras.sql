@@ -9,6 +9,31 @@
 --
 -- Nenhuma procedure faz COMMIT. Quem abre e fecha a transação é quem chama (a API ou você no
 -- psql). Assim, se qualquer passo falhar, o ROLLBACK desfaz tudo junto (atomicidade, RNF02).
+--
+-- Nomes seguem a convenção da aula 5 de BD2 (DEC-011): vw_ para views, sp_ para procedures,
+-- trg_ para triggers e fn_ para funções.
+
+-- ================================================================== IMUTABILIDADE (RN18)
+-- Resultado, conclusão e pontuação são fatos históricos: não se editam nem se apagam no MVP.
+-- BEFORE UPDATE OR DELETE: roda ANTES da alteração e a cancela levantando exceção.
+-- OLD é a linha como estava (em UPDATE e DELETE existe OLD; em INSERT só existe NEW).
+-- Uma constraint não consegue proibir UPDATE/DELETE; por isso aqui a trigger é a ferramenta certa
+-- (regra da aula 5: "se der para resolver com constraint, prefira constraint").
+CREATE FUNCTION fn_bloquear_alteracao() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    RAISE EXCEPTION '% é histórico e não pode ser alterado nem apagado (RN18)', TG_TABLE_NAME
+        USING ERRCODE = 'EJ409';
+    RETURN OLD;   -- nunca chega aqui; trigger BEFORE precisa devolver a linha ou NULL
+END;
+$$;
+
+CREATE TRIGGER trg_resultado_imutavel BEFORE UPDATE OR DELETE ON resultado_tentativa
+    FOR EACH ROW EXECUTE FUNCTION fn_bloquear_alteracao();
+CREATE TRIGGER trg_conclusao_imutavel BEFORE UPDATE OR DELETE ON conclusao
+    FOR EACH ROW EXECUTE FUNCTION fn_bloquear_alteracao();
+CREATE TRIGGER trg_pontuacao_imutavel BEFORE UPDATE OR DELETE ON pontuacao
+    FOR EACH ROW EXECUTE FUNCTION fn_bloquear_alteracao();
 
 -- ================================================================== TRIGGER DE PONTOS (RN09, RN10, RN13)
 -- Toda conclusão gera exatamente uma pontuação, na MESMA transação.
@@ -100,7 +125,7 @@ $$;
 -- ================================================================== APROVAR DESAFIO (RF08, RN09, RNF02, RNF03)
 -- Procedure (CALL) e não function (SELECT): ela executa uma ação que muda dados e devolve
 -- só um status. O INOUT p_status é como a procedure "responde" a quem chamou.
-CREATE PROCEDURE aprovar_projeto(
+CREATE PROCEDURE sp_aprovar_projeto(
     p_tentativa bigint, p_avaliador bigint, p_parecer text, INOUT p_status text DEFAULT NULL)
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -132,7 +157,7 @@ END;
 $$;
 
 -- ================================================================== PEDIR AJUSTES (RF08, RN07)
-CREATE PROCEDURE pedir_ajustes(
+CREATE PROCEDURE sp_pedir_ajustes(
     p_tentativa bigint, p_avaliador bigint, p_parecer text, INOUT p_status text DEFAULT NULL)
 LANGUAGE plpgsql AS $$
 DECLARE
@@ -161,7 +186,7 @@ $$;
 
 -- ================================================================== ENVIAR DESAFIO (RF07, RN06, RN07, RN08)
 -- O membro envia link e descrição. Cria a participação na primeira vez e numera as tentativas.
-CREATE PROCEDURE enviar_projeto(
+CREATE PROCEDURE sp_enviar_projeto(
     p_usuario bigint, p_avaliacao bigint, p_link text, p_descricao text,
     INOUT p_id_tentativa bigint DEFAULT NULL, INOUT p_numero int DEFAULT NULL)
 LANGUAGE plpgsql AS $$
@@ -231,4 +256,107 @@ BEGIN
     VALUES (v_participacao, p_numero, p_link, NULLIF(btrim(p_descricao), ''))
     RETURNING id_tentativa INTO p_id_tentativa;
 END;
+$$;
+
+-- ================================================================== RESPONDER QUIZ (RF06, RN05, RN07, RN09)
+-- O membro manda as respostas; o BANCO corrige (o gabarito nunca sai do servidor).
+-- p_respostas: JSON com uma resposta por questão, por exemplo
+--   [{"id_questao": 1, "alternativa": 3}, {"id_questao": 2, "alternativa": 1}, ...]
+-- Tudo numa transação: tentativa, respostas, resultado e, se aprovado, conclusão (+ pontos pela
+-- trigger). Mesma convenção de bloqueio do desafio: FOR UPDATE na participação.
+CREATE PROCEDURE sp_responder_quiz(
+    p_usuario bigint, p_avaliacao bigint, p_respostas jsonb,
+    INOUT p_id_tentativa bigint DEFAULT NULL, INOUT p_percentual numeric DEFAULT NULL,
+    INOUT p_decisao text DEFAULT NULL)
+LANGUAGE plpgsql AS $$
+DECLARE
+    v_tipo         text;
+    v_minimo       numeric;
+    v_trilha       bigint;
+    v_matricula    bigint;
+    v_participacao bigint;
+    v_numero       int;
+    v_questoes     int;
+    v_validas      int;
+BEGIN
+    SELECT a.tipo, a.percentual_minimo, mo.id_trilha INTO v_tipo, v_minimo, v_trilha
+    FROM avaliacao a JOIN modulo mo ON mo.id_modulo = a.id_modulo
+    WHERE a.id_avaliacao = p_avaliacao;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'avaliação % não existe', p_avaliacao USING ERRCODE = 'EJ404';
+    END IF;
+    IF v_tipo <> 'quiz' THEN
+        RAISE EXCEPTION 'esta avaliação é um desafio; envie o link do projeto' USING ERRCODE = 'EJ409';
+    END IF;
+
+    SELECT m.id_matricula INTO v_matricula
+    FROM matricula m JOIN usuario u ON u.id_usuario = m.id_usuario
+    WHERE m.id_usuario = p_usuario AND m.id_trilha = v_trilha AND u.ativo;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'usuário % não está matriculado nesta trilha', p_usuario USING ERRCODE = 'EJ403';
+    END IF;
+
+    -- RN05: uma resposta para CADA questão do quiz, nenhuma de fora, alternativa existente.
+    SELECT count(*) INTO v_questoes FROM questao WHERE id_avaliacao = p_avaliacao;
+    SELECT count(DISTINCT q.id_questao) INTO v_validas
+    FROM jsonb_to_recordset(COALESCE(p_respostas, '[]'::jsonb)) AS r(id_questao bigint, alternativa smallint)
+    JOIN questao q     ON q.id_questao = r.id_questao AND q.id_avaliacao = p_avaliacao
+    JOIN alternativa a ON a.id_questao = r.id_questao AND a.numero = r.alternativa;
+    IF v_validas <> v_questoes OR jsonb_array_length(COALESCE(p_respostas, '[]'::jsonb)) <> v_questoes THEN
+        RAISE EXCEPTION 'responda cada uma das % questões uma única vez, com alternativas válidas', v_questoes
+            USING ERRCODE = 'EJ400';
+    END IF;
+
+    INSERT INTO participacao_avaliacao (id_matricula, id_avaliacao)
+    VALUES (v_matricula, p_avaliacao)
+    ON CONFLICT (id_matricula, id_avaliacao) DO NOTHING;
+
+    SELECT pa.id_participacao INTO v_participacao
+    FROM participacao_avaliacao pa
+    WHERE pa.id_matricula = v_matricula AND pa.id_avaliacao = p_avaliacao
+    FOR UPDATE;
+
+    IF EXISTS (SELECT 1 FROM conclusao c WHERE c.id_participacao = v_participacao) THEN
+        RAISE EXCEPTION 'quiz já aprovado; não recebe nova tentativa' USING ERRCODE = 'EJ409';  -- RN07
+    END IF;
+
+    SELECT COALESCE(max(numero), 0) + 1 INTO v_numero
+    FROM tentativa_avaliacao WHERE id_participacao = v_participacao;
+
+    INSERT INTO tentativa_avaliacao (id_participacao, numero)
+    VALUES (v_participacao, v_numero)
+    RETURNING id_tentativa INTO p_id_tentativa;
+
+    INSERT INTO resposta_tentativa (id_tentativa, id_questao, numero_alternativa)
+    SELECT p_id_tentativa, r.id_questao, r.alternativa
+    FROM jsonb_to_recordset(p_respostas) AS r(id_questao bigint, alternativa smallint);
+
+    -- Correção no servidor: percentual a partir das respostas GRAVADAS (RN05).
+    SELECT round(100.0 * sum((a.correta)::int) / count(*), 2) INTO p_percentual
+    FROM resposta_tentativa r
+    JOIN alternativa a ON a.id_questao = r.id_questao AND a.numero = r.numero_alternativa
+    WHERE r.id_tentativa = p_id_tentativa;
+
+    p_decisao := CASE WHEN p_percentual >= v_minimo THEN 'aprovada' ELSE 'reprovada' END;
+
+    INSERT INTO resultado_tentativa (id_tentativa, decisao, percentual_acerto)
+    VALUES (p_id_tentativa, p_decisao, p_percentual);
+
+    IF p_decisao = 'aprovada' THEN
+        INSERT INTO conclusao (id_participacao, id_tentativa)   -- a trigger grava os pontos
+        VALUES (v_participacao, p_id_tentativa);
+    END IF;
+END;
+$$;
+
+-- ================================================================== LOGIN (RF01, RNF04, RN17)
+-- Confere e-mail e senha e devolve o id do usuário, ou NULL. A comparação acontece no banco:
+-- crypt(senha_digitada, hash_guardado) refaz o bcrypt com o MESMO sal e compara.
+-- lower(email) usa o índice único usuario_email_uk. Desligado (ativo = false) não entra.
+CREATE FUNCTION fn_autenticar(p_email text, p_senha text) RETURNS bigint
+LANGUAGE sql STABLE AS $$
+    SELECT u.id_usuario FROM usuario u
+    WHERE lower(u.email) = lower(btrim(p_email))
+      AND u.ativo
+      AND u.senha_hash = crypt(p_senha, u.senha_hash);
 $$;
