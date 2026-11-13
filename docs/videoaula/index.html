@@ -1,0 +1,872 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Videoaula EJ Quest</title>
+<style>
+  :root {
+    --fundo: #f6f5f2; --painel: #ffffff; --texto: #1d1d1f; --suave: #5b5b63; --linha: #dedcd6;
+    --destaque: #e8590c; --destaque-suave: #fff1e8; --codigo-fundo: #1f2430; --codigo-texto: #e6e6e6;
+    --ok: #2b8a3e; --erro: #c92a2a; --azul: #1971c2; --amarelo: #f59f00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fundo: #141416; --painel: #1d1d21; --texto: #ececef; --suave: #a3a3ad; --linha: #34343a;
+      --destaque: #ff8a3d; --destaque-suave: #3a2416; --codigo-fundo: #0f1117; --codigo-texto: #e6e6e6;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fundo: #141416; --painel: #1d1d21; --texto: #ececef; --suave: #a3a3ad; --linha: #34343a;
+    --destaque: #ff8a3d; --destaque-suave: #3a2416; --codigo-fundo: #0f1117; --codigo-texto: #e6e6e6;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fundo); color: var(--texto);
+         font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+           padding: 12px 16px; border-bottom: 1px solid var(--linha); background: var(--painel);
+           position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 17px; margin: 0; }
+  header h1 span { color: var(--destaque); }
+  .controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  button, select { font: inherit; border: 1px solid var(--linha); background: var(--painel); color: var(--texto);
+                   border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button:hover { border-color: var(--destaque); }
+  button.principal { background: var(--destaque); color: #fff; border-color: var(--destaque); min-width: 108px; }
+  label { font-size: 14px; color: var(--suave); display: flex; gap: 6px; align-items: center; }
+  .barra { height: 4px; background: var(--linha); }
+  .barra div { height: 100%; width: 0; background: var(--destaque); transition: width .3s; }
+  .layout { display: grid; grid-template-columns: 290px 1fr; min-height: calc(100vh - 66px); }
+  nav { border-right: 1px solid var(--linha); padding: 12px; overflow-y: auto; max-height: calc(100vh - 66px);
+        position: sticky; top: 66px; background: var(--painel); }
+  nav h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--suave); margin: 14px 4px 4px; }
+  nav button { display: block; width: 100%; text-align: left; border: 0; padding: 5px 8px; font-size: 14px;
+               border-radius: 6px; background: transparent; }
+  nav button.atual { background: var(--destaque-suave); color: var(--destaque); font-weight: 600; }
+  main { padding: 24px clamp(16px, 4vw, 48px); max-width: 1100px; min-width: 0; }
+  .modulo { color: var(--destaque); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+  h2 { font-size: clamp(22px, 3vw, 30px); margin: 4px 0 16px; }
+  .palco { background: var(--painel); border: 1px solid var(--linha); border-radius: 14px; padding: 20px;
+           min-height: 300px; overflow-x: auto; }
+  .legenda { margin-top: 16px; background: var(--painel); border: 1px solid var(--linha); border-radius: 14px;
+             padding: 14px 18px; font-size: 17px; }
+  .legenda span { color: var(--suave); }
+  .legenda span.dita { color: var(--texto); }
+  .legenda span.falando { color: var(--texto); background: var(--destaque-suave); border-radius: 4px; }
+  .legenda .quem { font-weight: 700; color: var(--destaque); }
+  pre { background: var(--codigo-fundo); color: var(--codigo-texto); padding: 14px 16px; border-radius: 10px;
+        overflow-x: auto; font: 13.5px/1.5 ui-monospace, "JetBrains Mono", Consolas, monospace; margin: 8px 0; }
+  pre .c { color: #8b949e; } pre .k { color: #ff9f5a; } pre .s { color: #a5d6a7; } pre .h { background: #3a2a10; display: inline-block; width: 100%; }
+  code { font-family: ui-monospace, Consolas, monospace; background: var(--destaque-suave); padding: 1px 5px; border-radius: 4px; font-size: 90%; }
+  table { border-collapse: collapse; width: 100%; font-size: 15px; }
+  th, td { border-bottom: 1px solid var(--linha); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { color: var(--suave); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; }
+  .grade { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .cartao { border: 1px solid var(--linha); border-radius: 12px; padding: 14px; }
+  .cartao h4 { margin: 0 0 6px; }
+  .fluxo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .caixa { border: 2px solid var(--linha); border-radius: 10px; padding: 8px 12px; background: var(--painel); font-size: 14px; }
+  .caixa.pg { border-color: var(--azul); } .caixa.rd { border-color: var(--erro); } .caixa.api { border-color: var(--destaque); }
+  .seta { color: var(--suave); font-size: 20px; }
+  .ok { color: var(--ok); font-weight: 600; } .erro { color: var(--erro); font-weight: 600; }
+  .grande { font-size: 42px; font-weight: 800; color: var(--destaque); line-height: 1.1; }
+  .q { border-left: 4px solid var(--azul); padding: 6px 12px; margin: 10px 0; }
+  .r { border-left: 4px solid var(--destaque); padding: 6px 12px; margin: 0 0 14px; }
+  .aviso { background: var(--destaque-suave); border-radius: 10px; padding: 10px 14px; margin-top: 12px; }
+  @media (max-width: 820px) {
+    .layout { grid-template-columns: 1fr; }
+    nav { position: static; max-height: 220px; border-right: 0; border-bottom: 1px solid var(--linha); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Videoaula <span>EJ Quest</span> · BD2 e PW1</h1>
+  <div class="controles">
+    <button id="anterior" title="Cena anterior (←)">◀</button>
+    <button id="tocar" class="principal" title="Tocar ou pausar (espaço)">▶ Tocar</button>
+    <button id="proxima" title="Próxima cena (→)">▶▶</button>
+    <label>Velocidade <select id="velocidade"><option>0.9</option><option selected>1.0</option><option>1.15</option><option>1.3</option><option>1.5</option></select></label>
+    <label>Voz <select id="voz"></select></label>
+  </div>
+</header>
+<div class="barra"><div id="progresso"></div></div>
+<div class="layout">
+  <nav id="indice"></nav>
+  <main>
+    <div class="modulo" id="modulo"></div>
+    <h2 id="titulo"></h2>
+    <div class="palco" id="palco"></div>
+    <div class="legenda" id="legenda" aria-live="polite"></div>
+    <p style="color:var(--suave);font-size:13px;margin-top:10px">
+      A voz é a síntese de fala do seu navegador (no Chrome há vozes em português do Brasil). Espaço toca ou pausa;
+      as setas trocam de cena. Sem voz disponível, a aula avança sozinha no tempo de leitura.
+    </p>
+  </main>
+</div>
+
+<!-- ============================================================ VISUAIS DAS CENAS -->
+<template id="v-abertura">
+  <div class="grande">EJ Quest</div>
+  <p style="font-size:19px">Gestão do conhecimento gamificada para Empresas Juniores.<br>
+  Projeto de <b>Banco de Dados 2</b> (persistência poliglota) e base de <b>Programação Web 1</b>.</p>
+  <div class="grade" style="margin-top:18px">
+    <div class="cartao"><h4>1 · Visão e arquitetura</h4>problema, poliglota, camadas, execução</div>
+    <div class="cartao"><h4>2 · Modelagem e schema</h4>ER, 3FN, restrições, índice</div>
+    <div class="cartao"><h4>3 · Regras no banco</h4>views, triggers, procedures</div>
+    <div class="cartao"><h4>4 · Transações</h4>ACID, FOR UPDATE, isolamento, WAL</div>
+    <div class="cartao"><h4>5 · Carga, API e Redis</h4>140 mil tentativas, Cache-Aside, Sorted Set</div>
+    <div class="cartao"><h4>6 · Prova e banca</h4>testes, números e simulação da apresentação</div>
+  </div>
+</template>
+
+<template id="v-problema">
+  <div class="grade">
+    <div class="cartao"><h4 class="erro">O problema</h4>A cada troca de gestão, a EJ perde conhecimento. Trainees aprendem de forma solta, sem trilha, sem acompanhamento e sem motivação.</div>
+    <div class="cartao"><h4 class="ok">A solução</h4>Trilhas por diretoria, com módulos, lições, quizzes e um desafio final avaliado pelo gestor. Cada aprovação vira pontos e entra num ranking.</div>
+    <div class="cartao"><h4>Quem usa</h4>Membro: estuda, envia o desafio, acompanha o progresso.<br>Gestor: avalia entregas da sua diretoria.<br>Gestor geral: administra tudo.</div>
+  </div>
+</template>
+
+<template id="v-poliglota">
+  <div class="grade">
+    <div class="cartao" style="border-color:var(--azul)"><h4>PostgreSQL · o livro-caixa</h4>Fonte oficial. Usuários, trilhas, tentativas, conclusões e pontos. Integridade, transações ACID, views, procedures e triggers.</div>
+    <div class="cartao" style="border-color:var(--erro)"><h4>Redis · o quadro branco</h4>Cópias derivadas e descartáveis: o top 100 do ranking (string JSON, 60 s) e o placar com a posição de cada um (Sorted Set).</div>
+  </div>
+  <div class="aviso">Se alguém apagar o quadro, a gente refaz olhando o livro-caixa. O contrário nunca acontece.</div>
+  <table style="margin-top:12px"><tr><th>Exigência da especificação de BD2</th><th>No EJ Quest</th></tr>
+    <tr><td>Relacional + NoSQL com divisão justificável</td><td>PostgreSQL 16 + Redis 7</td></tr>
+    <tr><td>Justificativa do NoSQL</td><td>Caching de alta velocidade e placar de líderes</td></tr>
+    <tr><td>Padrão de sincronização</td><td>Cache-Aside e Write-Through</td></tr></table>
+</template>
+
+<template id="v-camadas">
+  <div class="fluxo">
+    <div class="caixa">Navegador<br><small>React (web/)</small></div><span class="seta">→</span>
+    <div class="caixa api">Controller<br><small>rotas.js</small></div><span class="seta">→</span>
+    <div class="caixa api">Service<br><small>servicos/</small></div><span class="seta">→</span>
+    <div class="caixa api">Repository<br><small>repositorios/ e cache.js</small></div><span class="seta">→</span>
+    <div class="caixa pg">PostgreSQL</div><div class="caixa rd">Redis</div>
+  </div>
+  <table style="margin-top:16px"><tr><th>Camada</th><th>Faz</th><th>Não faz</th></tr>
+    <tr><td>Controller (<code>rotas.js</code>)</td><td>Traduz HTTP: valida o id, chama o serviço, responde JSON</td><td>Regra de negócio</td></tr>
+    <tr><td>Service (<code>servicos/</code>)</td><td>Orquestra: transação, cache ou banco, sincronização</td><td>SQL</td></tr>
+    <tr><td>Repository (<code>repositorios/</code>)</td><td>Todo o SQL parametrizado e os comandos do Redis</td><td>Decidir regra</td></tr>
+    <tr><td>Banco</td><td>Guarda e <b>defende</b> os dados</td><td>Confiar que a API está certa</td></tr></table>
+</template>
+
+<template id="v-estrutura">
+<pre>ej-quest/
+├── <span class="k">db/</span>                     scripts SQL, rodados em ordem
+│   ├── 01_schema.sql       16 tabelas e restrições (3FN)
+│   ├── 02_indices.sql      índice extra, medido com e sem
+│   ├── 03_views.sql        vw_ranking_consolidado, vw_progresso_membro, vw_fila_avaliacao
+│   ├── 04_regras.sql       triggers e procedures sp_
+│   ├── 05_povoamento.sql   carga de 140.574 tentativas
+│   └── testes/             testes de restrições e regras
+├── <span class="k">api/src/</span>                Node.js + Express
+│   ├── rotas.js · servicos/ · repositorios/ · transacao.js · cache.js · erros.js
+├── <span class="k">scripts/</span>                recriar-banco, testar-banco, testar-api, medir-indice, medir-cache, conferir-placar
+├── <span class="k">docs/</span>                   spec/ (requisitos e decisões) · manual/ · resultados/ · videoaula/
+├── web/                    front React (fase de PW1)
+└── docker-compose.yml      db (PostgreSQL) · cache (Redis) · api</pre>
+</template>
+
+<template id="v-executar">
+<pre><span class="c"># uma vez</span>
+cp .env.example .env
+<span class="c"># sobe PostgreSQL, Redis e a API</span>
+docker compose up -d --build
+<span class="c"># apaga tudo e roda db/01 a 05 (cerca de 25 s)</span>
+./scripts/recriar-banco.sh
+<span class="s">   tentativa_avaliacao         | 140574
+   resposta_tentativa          | 378225
+   conclusao                   |  34101
+   pontuacao                   |  34101
+   desafios aguardando parecer |   1466</span>
+curl -s localhost:3000/saude
+<span class="s">{"api":"ok","postgres":"ok","redis":"ok"}</span></pre>
+</template>
+
+<template id="v-tabelas">
+  <table><tr><th>Grupo</th><th>Tabelas</th><th>Para quê</th></tr>
+    <tr><td>Acesso</td><td><code>usuario</code> <code>diretoria</code> <code>vinculo_diretoria</code></td><td>Quem é quem e quem gere o quê</td></tr>
+    <tr><td>Conteúdo</td><td><code>trilha</code> <code>modulo</code> <code>licao</code> <code>avaliacao</code> <code>questao</code> <code>alternativa</code></td><td>O que se estuda e como se avalia</td></tr>
+    <tr><td>Participação</td><td><code>matricula</code> <code>participacao_avaliacao</code> <code>tentativa_avaliacao</code> <code>resposta_tentativa</code> <code>resultado_tentativa</code></td><td>O que o membro fez e o que foi decidido</td></tr>
+    <tr><td>Recompensa</td><td><code>conclusao</code> <code>pontuacao</code></td><td>O que conta para progresso e ranking</td></tr></table>
+  <div class="grade" style="margin-top:14px">
+    <div class="cartao"><h4>1:N vira FK</h4><code>modulo.id_trilha</code> aponta para a trilha</div>
+    <div class="cartao"><h4>N:N vira associativa</h4><code>vinculo_diretoria</code> (usuário × diretoria, com <code>papel</code>) e <code>matricula</code> (usuário × trilha)</div>
+  </div>
+</template>
+
+<template id="v-participacao">
+  <div class="fluxo">
+    <div class="caixa">usuario 12<br><small>Gabriel</small></div><span class="seta">→</span>
+    <div class="caixa">matricula 40<br><small>trilha Fundamentos</small></div><span class="seta">→</span>
+    <div class="caixa api">participacao 300<br><small>matrícula × Desafio</small></div><span class="seta">→</span>
+    <div class="caixa">tentativa 1 → ajustes<br>tentativa 2 → aprovada</div><span class="seta">→</span>
+    <div class="caixa">conclusao<br><small>PK = participação 300</small></div><span class="seta">→</span>
+    <div class="caixa">pontuacao<br><small>PK = participação 300 · 80 pts</small></div>
+  </div>
+  <ol style="margin-top:18px">
+    <li><b>Agrupa</b> as tentativas do mesmo membro na mesma avaliação.</li>
+    <li><b>Garante unicidade</b>: <code>UNIQUE (id_matricula, id_avaliacao)</code>.</li>
+    <li>É a <b>linha travada</b> na aprovação (<code>FOR UPDATE</code>).</li>
+    <li>É a <b>chave primária</b> de <code>conclusao</code> e <code>pontuacao</code>: duas conclusões para a mesma participação são impossíveis.</li>
+  </ol>
+</template>
+
+<template id="v-3fn">
+  <div class="grade">
+    <div class="cartao"><h4 class="erro">Errado</h4><code>tentativa_avaliacao (id, id_participacao, <b>id_usuario</b>, ...)</code><p>O usuário já é alcançado por tentativa → participação → matrícula → usuário. Guardar de novo permite uma tentativa dizer "usuário 12" enquanto a matrícula diz "usuário 15".</p></div>
+    <div class="cartao"><h4 class="ok">Certo</h4><code>tentativa_avaliacao</code> e <code>pontuacao</code> <b>não</b> têm <code>id_usuario</code>. Total de pontos, progresso e posição são <b>calculados</b> por views.</div>
+  </div>
+  <div class="aviso"><b>O preço da 3FN:</b> mais JOINs. O ranking anda <code>pontuacao → participacao → matricula → usuario</code>. A view organiza, o índice acelera e o cache evita repetir: a normalização cria o problema que o resto da disciplina resolve.</div>
+</template>
+
+<template id="v-restricoes">
+<pre><span class="c">-- RN01: e-mail único sem diferenciar maiúsculas</span>
+<span class="k">CREATE UNIQUE INDEX</span> usuario_email_uk <span class="k">ON</span> usuario (lower(email));
+
+<span class="c">-- RN05: no máximo UMA alternativa correta por questão (índice único PARCIAL)</span>
+<span class="k">CREATE UNIQUE INDEX</span> alternativa_uma_correta_uk <span class="k">ON</span> alternativa (id_questao) <span class="k">WHERE</span> correta;
+
+<span class="c">-- RN04: matrícula única por usuário e trilha</span>
+<span class="k">CONSTRAINT</span> matricula_uk <span class="k">UNIQUE</span> (id_usuario, id_trilha)
+
+<span class="c">-- RN17: histórico não se apaga</span>
+id_usuario bigint <span class="k">NOT NULL REFERENCES</span> usuario (id_usuario) <span class="k">ON DELETE RESTRICT</span></pre>
+  <table><tr><th>Restrição</th><th>Impede</th></tr>
+    <tr><td>PRIMARY KEY</td><td>linha repetida ou sem identidade</td></tr>
+    <tr><td>FOREIGN KEY</td><td>referência a algo que não existe</td></tr>
+    <tr><td>UNIQUE</td><td>duplicidade</td></tr>
+    <tr><td>CHECK / NOT NULL</td><td>valor proibido ou vazio</td></tr></table>
+</template>
+
+<template id="v-fkcomposta">
+<pre><span class="c">-- conclusao: a tentativa que conclui a participação TEM que ser dela</span>
+<span class="k">CONSTRAINT</span> conclusao_tentativa_da_participacao_fk
+    <span class="k">FOREIGN KEY</span> (id_participacao, id_tentativa)
+    <span class="k">REFERENCES</span> tentativa_avaliacao (id_participacao, id_tentativa)
+
+<span class="c">-- resposta_tentativa: a alternativa escolhida existe NAQUELA questão</span>
+<span class="k">CONSTRAINT</span> resposta_alternativa_fk
+    <span class="k">FOREIGN KEY</span> (id_questao, numero_alternativa)
+    <span class="k">REFERENCES</span> alternativa (id_questao, numero)</pre>
+  <p>Para a FK composta funcionar, o lado referenciado precisa de <code>UNIQUE</code> no par. Por isso existe <code>UNIQUE (id_participacao, id_tentativa)</code>, que parece redundante e não é.</p>
+</template>
+
+<template id="v-null">
+<pre><span class="c">-- 1ª versão: parecia certa</span>
+<span class="k">CHECK</span> ((tipo = <span class="s">'quiz'</span> <span class="k">AND</span> percentual_minimo <span class="k">BETWEEN</span> 0 <span class="k">AND</span> 100) <span class="k">OR</span>
+       (tipo = <span class="s">'projeto'</span> <span class="k">AND</span> percentual_minimo <span class="k">IS NULL</span>))
+
+<span class="c">-- quiz com percentual_minimo NULL:</span>
+<span class="c">--   NULL BETWEEN 0 AND 100  →  NULL</span>
+<span class="c">--   NULL OR FALSE           →  NULL   →  o CHECK ACEITA!</span>
+
+<span class="h"><span class="c">-- correção</span></span>
+<span class="k">CHECK</span> ((tipo = <span class="s">'quiz'</span> <span class="k">AND</span> percentual_minimo <span class="k">IS NOT NULL AND</span> percentual_minimo <span class="k">BETWEEN</span> 0 <span class="k">AND</span> 100) <span class="k">OR</span> ...)</pre>
+  <p><span class="erro">Teste 10: FALHOU, o banco aceitou</span> → corrigido → <span class="ok">OK, recusado</span>. A mesma armadilha existia no parecer obrigatório do pedido de ajustes.</p>
+</template>
+
+<template id="v-indice">
+  <table><tr><th>Consulta</th><th>Sem índice</th><th>Com índice</th></tr>
+    <tr><td>Histórico de uma participação (índice <b>planejado</b>)</td><td>0,25 ms</td><td>0,28 ms · <span class="erro">nenhum ganho</span></td></tr>
+    <tr><td>20 entregas mais recentes (<code>idx_tentativa_enviada_em</code>)</td><td>53,0 ms · Seq Scan</td><td><b class="ok">0,26 ms</b> · Index Scan Backward</td></tr>
+    <tr><td>Entregas dos últimos 30 dias (8,9% das linhas)</td><td>36,7 ms · Seq Scan</td><td><b class="ok">12,1 ms</b> · Index Only Scan</td></tr></table>
+<pre><span class="k">EXPLAIN</span> (<span class="k">ANALYZE</span>, <span class="k">BUFFERS</span>) <span class="k">SELECT</span> id_tentativa, enviada_em
+<span class="k">FROM</span> tentativa_avaliacao <span class="k">ORDER BY</span> enviada_em <span class="k">DESC LIMIT</span> 20;</pre>
+  <div class="aviso">Índice que não ajuda só custa: ocupa disco e deixa todo INSERT mais lento. O planejado saiu (DEC-010).</div>
+</template>
+
+<template id="v-views">
+<pre><span class="k">CREATE VIEW</span> vw_ranking_consolidado <span class="k">AS</span>
+<span class="k">SELECT</span> u.id_usuario, u.nome,
+       <span class="k">SUM</span>(p.pontos)::int  <span class="k">AS</span> total_pontos,
+       <span class="k">MAX</span>(p.concedida_em) <span class="k">AS</span> ultima_concessao
+<span class="k">FROM</span> pontuacao p
+<span class="k">JOIN</span> participacao_avaliacao pa <span class="k">ON</span> pa.id_participacao = p.id_participacao
+<span class="k">JOIN</span> matricula m               <span class="k">ON</span> m.id_matricula     = pa.id_matricula
+<span class="k">JOIN</span> usuario u                 <span class="k">ON</span> u.id_usuario       = m.id_usuario
+<span class="k">WHERE</span> u.ativo                 <span class="c">-- RN17: desligado sai do ranking</span>
+<span class="k">GROUP BY</span> u.id_usuario, u.nome;</pre>
+  <table><tr><th>Pergunta da aula 5</th><th>Resposta no projeto</th></tr>
+    <tr><td>Simples, complexa ou materializada?</td><td>Complexa (JOIN e GROUP BY). Nenhuma materializada</td></tr>
+    <tr><td>É atualizável?</td><td>Não (tem agregação). A escrita passa pelas procedures</td></tr>
+    <tr><td>Deixa mais rápido?</td><td>Não. Organiza. Quem acelera é índice e cache</td></tr></table>
+</template>
+
+<template id="v-trigger">
+<pre><span class="k">CREATE FUNCTION</span> fn_conceder_pontos() <span class="k">RETURNS trigger LANGUAGE</span> plpgsql <span class="k">AS</span> $$
+<span class="k">BEGIN</span>
+    <span class="k">INSERT INTO</span> pontuacao (id_participacao, pontos, concedida_em)
+    <span class="k">SELECT</span> <span class="h">NEW.id_participacao</span>, a.pontos_previstos, <span class="h">NEW.concluida_em</span>
+    <span class="k">FROM</span> participacao_avaliacao pa <span class="k">JOIN</span> avaliacao a <span class="k">ON</span> a.id_avaliacao = pa.id_avaliacao
+    <span class="k">WHERE</span> pa.id_participacao = NEW.id_participacao;
+    <span class="k">RETURN</span> NEW;
+<span class="k">END</span>; $$;
+
+<span class="k">CREATE TRIGGER</span> trg_conclusao_pontua
+    <span class="k">AFTER INSERT ON</span> conclusao
+    <span class="k">FOR EACH ROW EXECUTE FUNCTION</span> fn_conceder_pontos();</pre>
+  <p><b>AFTER INSERT</b>: roda depois que a conclusão entrou. <b>FOR EACH ROW</b>: uma vez por linha. <b>NEW</b>: a linha nova. Roda <b>na mesma transação</b>: conclusão e pontos entram juntos ou nenhum entra.</p>
+</template>
+
+<template id="v-imutavel">
+<pre><span class="k">CREATE FUNCTION</span> fn_bloquear_alteracao() <span class="k">RETURNS trigger LANGUAGE</span> plpgsql <span class="k">AS</span> $$
+<span class="k">BEGIN</span>
+    <span class="k">RAISE EXCEPTION</span> <span class="s">'% é histórico e não pode ser alterado nem apagado (RN18)'</span>, TG_TABLE_NAME
+        <span class="k">USING ERRCODE</span> = <span class="s">'EJ409'</span>;
+    <span class="k">RETURN</span> OLD;
+<span class="k">END</span>; $$;
+
+<span class="k">CREATE TRIGGER</span> trg_pontuacao_imutavel <span class="k">BEFORE UPDATE OR DELETE ON</span> pontuacao
+    <span class="k">FOR EACH ROW EXECUTE FUNCTION</span> fn_bloquear_alteracao();
+<span class="c">-- idem em resultado_tentativa e conclusao</span></pre>
+<pre><span class="s"> alterar os pontos de uma pontuação | OK, recusado [EJ409]: pontuacao é histórico e não pode ser alterado nem apagado (RN18)
+ apagar uma conclusão               | OK, recusado [EJ409]: conclusao é histórico e não pode ser alterado nem apagado (RN18)</span></pre>
+  <div class="aviso"><b>Regra da aula 5:</b> se der para resolver com constraint, prefira constraint. Aqui não dá: constraint proíbe <i>valores</i>, não <i>operações</i>.</div>
+</template>
+
+<template id="v-procedure">
+<pre><span class="k">CREATE PROCEDURE</span> sp_aprovar_projeto(
+    p_tentativa bigint, p_avaliador bigint, p_parecer text, <span class="h"><span class="k">INOUT</span> p_status text <span class="k">DEFAULT NULL</span></span>)
+<span class="k">LANGUAGE</span> plpgsql <span class="k">AS</span> $$
+<span class="k">DECLARE</span> ctx record;
+<span class="k">BEGIN</span>
+    <span class="k">SELECT</span> * <span class="k">INTO</span> ctx <span class="k">FROM</span> fn_travar_tentativa(p_tentativa);   <span class="c">-- 1. trava a participação (FOR UPDATE)</span>
+    <span class="k">PERFORM</span> fn_validar_avaliador(p_avaliador, ctx.tipo, ctx.id_diretoria, ctx.id_dono); <span class="c">-- 2. permissão</span>
+    <span class="k">IF</span> ctx.ja_concluida <span class="k">THEN</span>                                     <span class="c">-- 3. idempotência</span>
+        p_status := <span class="s">'ja_aprovada'</span>; <span class="k">RETURN</span>;
+    <span class="k">END IF</span>;
+    <span class="k">IF</span> ctx.ja_avaliada <span class="k">THEN</span>
+        <span class="k">RAISE EXCEPTION</span> <span class="s">'tentativa % já recebeu parecer'</span>, p_tentativa <span class="k">USING ERRCODE</span> = <span class="s">'EJ409'</span>;
+    <span class="k">END IF</span>;
+    <span class="k">INSERT INTO</span> resultado_tentativa (...) <span class="k">VALUES</span> (p_tentativa, p_avaliador, <span class="s">'aprovada'</span>, ...); <span class="c">-- 4.</span>
+    <span class="k">INSERT INTO</span> conclusao (id_participacao, id_tentativa) <span class="k">VALUES</span> (...);  <span class="c">-- 5. a trigger dá os pontos</span>
+    p_status := <span class="s">'aprovada'</span>;                                      <span class="c">-- 6.</span>
+<span class="k">END</span>; $$;
+
+<span class="k">CALL</span> sp_aprovar_projeto(126087, 2, <span class="s">'Ótimo trabalho'</span>);   <span class="c">→  p_status = aprovada</span></pre>
+</template>
+
+<template id="v-acid">
+  <table><tr><th>Letra</th><th>No EJ Quest</th><th>Prova</th></tr>
+    <tr><td><b>A</b>tomicidade</td><td>Resultado, conclusão e pontos entram juntos ou nenhum entra</td><td>1, 1, 1 dentro da transação → ROLLBACK → 0, 0, 0</td></tr>
+    <tr><td><b>C</b>onsistência</td><td>PK, FK, UNIQUE, CHECK, triggers e procedures</td><td>25 operações proibidas, 25 recusas</td></tr>
+    <tr><td><b>I</b>solamento</td><td><code>FOR UPDATE</code> faz a 2ª aprovação esperar a 1ª</td><td>Teste das duas sessões</td></tr>
+    <tr><td><b>D</b>urabilidade</td><td>O COMMIT só responde depois de o WAL ir para o disco</td><td>Volume Docker com dados e <code>pg_wal/</code></td></tr></table>
+</template>
+
+<template id="v-lostupdate">
+  <table><tr><th>Tempo</th><th>Sessão A (gestor de Projetos)</th><th>Sessão B (gestor geral)</th></tr>
+    <tr><td>t1</td><td><code>BEGIN; CALL sp_aprovar_projeto(T, 2, 'ok');</code> → trava a participação</td><td></td></tr>
+    <tr><td>t2</td><td></td><td><code>CALL sp_aprovar_projeto(T, 1, 'ok');</code> → <b>espera no FOR UPDATE</b></td></tr>
+    <tr><td>t3</td><td><code>COMMIT;</code> → libera a linha</td><td></td></tr>
+    <tr><td>t4</td><td></td><td>destrava, relê, vê a conclusão → <b>ja_aprovada</b></td></tr></table>
+  <div class="aviso">Sem a trava, as duas leriam "sem conclusão" e as duas gravariam: <b>lost update</b>. É o "Cenário A" do script de laboratório da aula 6: bloqueio pessimista com <code>SELECT ... FOR UPDATE</code>. E mesmo sem ele, a PK de <code>conclusao</code> recusaria a segunda.</div>
+</template>
+
+<template id="v-duassessoes">
+<pre><span class="c">./scripts/testar-banco.sh  ·  seção 3 (concorrência real)</span>
+Sessão A:
+  aprovada
+  A: 16:47:42.252 aprovou e segura o bloqueio por 3 s
+  A: 16:47:45.261 COMMIT
+Sessão B:
+  B: 16:47:43.270 chegou e pediu a aprovação
+  ja_aprovada
+  B: 16:47:45.267 destravou
+
+<span class="s"> resultados | conclusoes | pontuacoes
+          1 |          1 |          1</span></pre>
+<pre><span class="c">-- terceira janela, durante a espera (consulta do laboratório da aula 6)</span>
+<span class="k">SELECT</span> pid, pg_blocking_pids(pid) <span class="k">AS</span> bloqueado_por, state, left(query, 60)
+<span class="k">FROM</span> pg_stat_activity <span class="k">WHERE</span> cardinality(pg_blocking_pids(pid)) > 0;</pre>
+</template>
+
+<template id="v-isolamento">
+  <table><tr><th>Nível ANSI</th><th>No PostgreSQL</th></tr>
+    <tr><td>Read Uncommitted</td><td>Funciona como Read Committed: nunca há dirty read</td></tr>
+    <tr><td><b>Read Committed</b> (padrão)</td><td>Cada comando vê o que já foi confirmado. <b>É o que o projeto usa</b>, com <code>FOR UPDATE</code></td></tr>
+    <tr><td>Repeatable Read</td><td>Snapshot Isolation (MVCC): impede phantom, permite write skew</td></tr>
+    <tr><td>Serializable</td><td>SSI: impede tudo, mas aborta transações em conflito, que precisam ser repetidas</td></tr></table>
+  <div class="grade" style="margin-top:14px">
+    <div class="cartao"><h4>Strict 2PL</h4>O lock X do <code>FOR UPDATE</code> fica até o COMMIT ou ROLLBACK.</div>
+    <div class="cartao"><h4>Deadlock</h4>Cada transação trava uma linha só: sem ciclo. Se houvesse, o PostgreSQL detecta (1 s) e aborta uma.</div>
+    <div class="cartao"><h4>WAL</h4>Log antes dos dados. Na queda, o PostgreSQL faz só REDO; o MVCC dispensa o UNDO.</div>
+  </div>
+</template>
+
+<template id="v-carga">
+<pre><span class="k">SET</span> max_parallel_workers_per_gather = 0;   <span class="c">-- random() determinístico</span>
+<span class="k">SELECT</span> setseed(0.42);                          <span class="c">-- mesma carga toda vez</span>
+
+<span class="k">INSERT INTO</span> usuario (nome, email, senha_hash, ativo, gestor_geral)
+<span class="k">SELECT</span> ..., <span class="s">'usuario'</span> || n || <span class="s">'@ejquest.test'</span>, ...
+<span class="k">FROM</span> generate_series(1, 6000) <span class="k">AS</span> n;
+
+<span class="c">-- k tentativas por participação: o LATERAL deixa a função usar p.k da linha da esquerda</span>
+<span class="k">FROM</span> p <span class="k">CROSS JOIN LATERAL</span> generate_series(1, p.k) <span class="k">AS</span> g(n)</pre>
+  <table><tr><th>Regra respeitada pela carga</th><th>Como</th></tr>
+    <tr><td>Nota vem das respostas</td><td>O resultado do quiz é calculado das respostas gravadas</td></tr>
+    <tr><td>RN07</td><td>Só a última tentativa pode ser aprovada</td></tr>
+    <tr><td>RN06</td><td>Desafio só para quem concluiu os 3 quizzes</td></tr>
+    <tr><td>Pontos</td><td>As 34.101 pontuações nasceram da trigger</td></tr></table>
+</template>
+
+<template id="v-requisicao">
+<pre>POST /tentativas/126087/aprovar   X-Usuario-Id: 2   { "parecer": "Ótimo trabalho" }
+  index.js               CORS, express.json(), lê o X-Usuario-Id
+  rotas.js               valida o :id, chama o serviço              <span class="c">← Controller</span>
+  servicos/aprovacao.js  emTransacao → CALL → COMMIT → Redis        <span class="c">← Service</span>
+  repositorios/postgres  client.query('CALL sp_aprovar_projeto($1, $2, $3, NULL)', [...])  <span class="c">← Repository</span>
+  erros.js               SQLSTATE EJ403 → HTTP 403
+<span class="s">← 200 { "status": "aprovada", "ranking_invalidado": true, "placar_atualizado": true }</span></pre>
+  <table><tr><th>Código do banco</th><th>HTTP</th><th>Exemplo</th></tr>
+    <tr><td>EJ403</td><td>403</td><td>autoaprovação, gestor de outra diretoria</td></tr>
+    <tr><td>EJ409</td><td>409</td><td>desafio já aprovado, envio aguardando parecer</td></tr>
+    <tr><td>EJ400</td><td>400</td><td>pedido de ajustes sem parecer</td></tr>
+    <tr><td>EJ404</td><td>404</td><td>tentativa inexistente</td></tr></table>
+</template>
+
+<template id="v-transacao">
+<pre><span class="k">async function</span> emTransacao(trabalho) {
+  <span class="k">const</span> client = <span class="k">await</span> pool.connect();          <span class="c">// UMA conexão reservada</span>
+  <span class="k">try</span> {
+    <span class="k">await</span> client.query(<span class="s">'BEGIN'</span>);
+    <span class="k">const</span> resultado = <span class="k">await</span> trabalho(client);
+    <span class="k">await</span> client.query(<span class="s">'COMMIT'</span>);
+    <span class="k">return</span> resultado;
+  } <span class="k">catch</span> (erro) {
+    <span class="k">await</span> client.query(<span class="s">'ROLLBACK'</span>).catch(() => {}); <span class="c">// nada fica pela metade</span>
+    <span class="k">throw</span> traduzirErroDoBanco(erro);
+  } <span class="k">finally</span> {
+    client.release();                           <span class="c">// devolve ao pool, SEMPRE</span>
+  }
+}</pre>
+  <div class="grade">
+    <div class="cartao"><h4 class="erro">Aula 12 de PW1 (risco)</h4><code>"INSERT ... VALUES ('" + valor + "')"</code><br>texto colado: SQL injection</div>
+    <div class="cartao"><h4 class="ok">EJ Quest</h4><code>query('... $1', [valor])</code><br>o valor vai separado; nunca vira comando</div>
+  </div>
+</template>
+
+<template id="v-cacheaside">
+  <div class="fluxo">
+    <div class="caixa api">GET /ranking</div><span class="seta">→</span>
+    <div class="caixa rd">GET ranking:geral:v1<br><small>timeout 300 ms</small></div><span class="seta">→</span>
+    <div class="caixa">achou? devolve<br><small>origem: cache</small></div>
+  </div>
+  <div class="fluxo" style="margin-top:10px">
+    <span class="seta">não achou →</span>
+    <div class="caixa pg">SELECT ... vw_ranking_consolidado<br><small>ORDER BY RN12 LIMIT 100</small></div><span class="seta">→</span>
+    <div class="caixa rd">SET ... EX 60</div><span class="seta">→</span>
+    <div class="caixa">devolve<br><small>origem: postgres</small></div>
+  </div>
+  <div class="aviso">Na aprovação: <b>COMMIT primeiro, DEL depois</b>. Se o DEL viesse antes, outra leitura poderia regravar no Redis a versão sem os pontos novos.</div>
+</template>
+
+<template id="v-sortedset">
+<pre>ranking:placar:v1   (Sorted Set: sempre ordenado pelo score)
+  membro  │ score
+  "1121"  │ 2 808 2xx xxx xxx   ← 280 pontos, concessão mais antiga
+  "2178"  │ 2 808 2xx xxx xxx
+  ...     │ ...
+
+score = total_pontos × 10<sup>10</sup> + (10<sup>10</sup> − segundos da última concessão)
+
+<span class="k">ZREVRANK</span> ranking:placar:v1 <span class="s">"8"</span>   →  posição em O(log N)
+<span class="k">ZADD</span>     ranking:placar:v1 &lt;score&gt; <span class="s">"8"</span>   ← Write-Through, depois do COMMIT</pre>
+  <table><tr><th></th><th>Cache-Aside (top 100)</th><th>Write-Through (placar)</th></tr>
+    <tr><td>Quem enche</td><td>A leitura que não achou</td><td>A escrita, logo após o COMMIT</td></tr>
+    <tr><td>Na aprovação</td><td><code>DEL</code></td><td><code>ZADD</code> (só se o placar existir, via Lua)</td></tr>
+    <tr><td>Consistência</td><td>atraso de até 60 s</td><td>imediata; reconstrução se o Redis sumir</td></tr></table>
+</template>
+
+<template id="v-redisfora">
+<pre><span class="c">docker compose stop cache</span>
+GET /saude        <span class="s">{"api":"ok","postgres":"ok","redis":"indisponível"}</span>
+GET /ranking      <span class="s">{"origem":"postgres", ...}</span>
+GET /ranking/eu   <span class="s">{"origem":"postgres","posicao":554, ...}</span>
+POST /aprovar     <span class="s">{"status":"aprovada","ranking_invalidado":false,"placar_atualizado":false}</span>
+<span class="c">docker compose start cache   (volta VAZIO: sem disco)</span>
+GET /ranking/eu   <span class="s">{"origem":"redis (placar reconstruído)", ...}</span>
+    usuário 59: Redis=555  SQL=555
+<span class="c">./scripts/conferir-placar.sh</span>
+<span class="s">Participantes no Redis: 5876 · no PostgreSQL: 5876
+Linhas fora de ordem: 0</span></pre>
+</template>
+
+<template id="v-testes">
+  <div class="grade">
+    <div class="cartao"><div class="grande">25</div>operações proibidas recusadas pelo banco (restrições, triggers e procedures), <b>0</b> falhas</div>
+    <div class="cartao"><div class="grande">1</div>conclusão e 1 pontuação com dois gestores aprovando ao mesmo tempo</div>
+    <div class="cartao"><div class="grande">0</div>diferenças entre o placar do Redis e o ranking do SQL, em 5.876 posições</div>
+    <div class="cartao"><div class="grande">3</div>erros meus que os testes acharam: dois CHECK com NULL e a ordem de validação na aprovação</div>
+  </div>
+  <p>Evidência guardada em <code>docs/resultados/</code>: <code>testes-banco.txt</code>, <code>testes-api.txt</code>, <code>indice.txt</code>, <code>cache.txt</code>.</p>
+</template>
+
+<template id="v-numeros">
+  <table><tr><th>Experimento</th><th>Sem</th><th>Com</th><th>Ganho</th></tr>
+    <tr><td>20 entregas mais recentes (índice)</td><td>53,0 ms</td><td><b>0,26 ms</b></td><td>~200×</td></tr>
+    <tr><td>Entregas dos últimos 30 dias (índice)</td><td>36,7 ms</td><td><b>12,1 ms</b></td><td>~3×</td></tr>
+    <tr><td>Top 100, latência mediana (cache)</td><td>59,3 ms</td><td><b>4,9 ms</b></td><td>~12×</td></tr>
+    <tr><td>Top 100, vazão com 20 clientes</td><td>159 req/s</td><td><b>898 req/s</b></td><td>~6×</td></tr>
+    <tr><td>Minha posição, vazão com 20 clientes</td><td>148 req/s</td><td><b>1.304 req/s</b></td><td>~9×</td></tr></table>
+  <div class="aviso">Ambiente: notebook Linux, 20 núcleos, 14 GB; tudo em Docker na mesma máquina. Medições locais, sem rede entre a API e os bancos.</div>
+</template>
+
+<template id="v-pitch">
+  <div class="cartao" style="border-color:var(--destaque)">
+    <h4>A abertura, na sua voz (cerca de 1 minuto)</h4>
+    <p>"Professor, o EJ Quest resolve um problema que eu vivo na Rocket: a cada gestão, a empresa júnior perde conhecimento. A plataforma organiza trilhas por diretoria, com quizzes e um desafio final avaliado pelo gestor, e cada aprovação vira pontos num ranking.</p>
+    <p>Para isso usei persistência poliglota. O PostgreSQL é a fonte oficial: 16 tabelas na terceira forma normal, com transações, views, procedures e triggers. O Redis guarda só cópias: o top 100 em Cache-Aside e o placar em Sorted Set com Write-Through.</p>
+    <p>Vou mostrar três coisas: o banco recusando o que é proibido, dois gestores aprovando a mesma entrega no mesmo segundo sem gerar ponto duplicado, e os números com e sem índice e cache, medidos em 140 mil tentativas."</p>
+  </div>
+</template>
+
+<template id="v-banca1">
+  <div class="q"><b>Professor:</b> Por que dois bancos? Um PostgreSQL não daria conta?</div>
+  <div class="r"><b>Você:</b> Daria em volume: 100 mil linhas não deixam o PostgreSQL lento. O Redis entra porque o ranking é uma agregação lida muitas vezes e mudada poucas. Medido: 898 contra 159 requisições por segundo.</div>
+  <div class="q"><b>Professor:</b> Por que Redis e não MongoDB?</div>
+  <div class="r"><b>Você:</b> O que vai para o NoSQL são valores prontos com prazo de validade e um placar ordenado. Isso é chave-valor e Sorted Set. Não tenho documentos de estrutura variável.</div>
+  <div class="q"><b>Professor:</b> O que impede ponto duplicado?</div>
+  <div class="r"><b>Você:</b> Três camadas: o FOR UPDATE na participação, a idempotência da procedure e a chave primária de conclusão e pontuação.</div>
+  <div class="q"><b>Professor:</b> Mostre a terceira forma normal.</div>
+  <div class="r"><b>Você:</b> Tentativa e pontuação não guardam o usuário: ele vem pela participação e pela matrícula. Guardar de novo seria dependência transitiva.</div>
+</template>
+
+<template id="v-banca2">
+  <div class="q"><b>Professor:</b> Qual nível de isolamento você usa?</div>
+  <div class="r"><b>Você:</b> Read Committed, o padrão do PostgreSQL, com bloqueio explícito FOR UPDATE. Serializable também resolveria, mas obrigaria a API a repetir transações.</div>
+  <div class="q"><b>Professor:</b> Seu sistema pode ter deadlock?</div>
+  <div class="r"><b>Você:</b> Cada transação trava uma linha só, então não forma ciclo. Se formasse, o PostgreSQL detecta e aborta uma das transações.</div>
+  <div class="q"><b>Professor:</b> Por que a imutabilidade é trigger e não constraint?</div>
+  <div class="r"><b>Você:</b> Constraint proíbe valores, não operações. Para proibir UPDATE e DELETE, só uma trigger BEFORE.</div>
+  <div class="q"><b>Professor:</b> E se o Redis cair no meio da aprovação?</div>
+  <div class="r"><b>Você:</b> A aprovação já está confirmada no PostgreSQL. A resposta avisa que o cache não foi atualizado, e quando o Redis volta, vazio, o placar é reconstruído do SQL.</div>
+</template>
+
+<template id="v-recortes">
+  <table><tr><th>Recorte declarado</th><th>Quando entra</th></tr>
+    <tr><td>Identificação pelo cabeçalho <code>X-Usuario-Id</code> (não é segurança)</td><td>Login com bcrypt e sessão na fase de PW1</td></tr>
+    <tr><td>Telas ligadas à API</td><td>PW1: rotas, props, react-icons, useState, useEffect, axios</td></tr>
+    <tr><td>Envio de quiz pela API</td><td>P1 (o banco já guarda respostas e corrige)</td></tr>
+    <tr><td>Carga sintética</td><td>Volume escolhido, não observado</td></tr></table>
+</template>
+
+<template id="v-estudo">
+  <ol style="font-size:17px">
+    <li>Releia a <b>revisão geral</b> do manual (<code>docs/manual/revisao-geral.md</code>).</li>
+    <li>Rode a demo do <b>capítulo 6</b> uma vez inteira, com a terceira janela do lock.</li>
+    <li>Responda em voz alta, sem olhar, as perguntas da banca (cenas 31 e 32).</li>
+    <li>Copie a tabela de números para o slide.</li>
+    <li>Plano B: as saídas em <code>docs/resultados/</code>.</li>
+  </ol>
+  <div class="aviso">Regra do projeto: o que você não conseguir explicar sai da demo.</div>
+</template>
+
+<script>
+// ============================================================ ROTEIRO (cena = visual + fala)
+// Nas falas, "Professor:" e "Você:" no início trocam o tom de voz.
+const CENAS = [
+  { m: 'Abertura', t: 'Bem-vindo à videoaula do EJ Quest', v: 'v-abertura', f: [
+    'Olá, Fideles. Esta é a videoaula do EJ Quest, o seu projeto de Banco de Dados 2, que também é a base de Programação Web 1.',
+    'Eu vou te mostrar o projeto do jeito que você vai apresentar ao professor, e no caminho explicar cada conceito da disciplina que aparece no código.',
+    'São seis partes: visão e arquitetura, modelagem e schema, regras dentro do banco, transações, carga com API e Redis, e por fim os testes, os números e uma simulação da banca.',
+    'Você pode pausar com a barra de espaço a qualquer momento, e trocar de cena com as setas.'] },
+  { m: 'Visão', t: 'O problema e a solução', v: 'v-problema', f: [
+    'Comece sempre pelo problema, porque é isso que dá sentido ao resto.',
+    'Em uma empresa júnior, a cada troca de gestão, o conhecimento vai embora com quem sai. O trainee aprende de forma solta, sem trilha e sem acompanhamento.',
+    'O EJ Quest organiza esse aprendizado em trilhas por diretoria. Cada trilha tem módulos, lições, quizzes e, no último módulo, um desafio prático que o gestor avalia.',
+    'Cada aprovação vira pontos, e os pontos alimentam um ranking. É a parte gamificada, que dá motivação.'] },
+  { m: 'Visão', t: 'Persistência poliglota: o livro-caixa e o quadro branco', v: 'v-poliglota', f: [
+    'A especificação de Banco de Dados 2 obriga a combinação de um banco relacional com um não relacional, com a divisão de responsabilidades justificada.',
+    'No EJ Quest, o PostgreSQL é o livro-caixa: tudo registrado, conferido e com regras. É a fonte oficial.',
+    'O Redis é o quadro branco na parede da sede: mostra o ranking rápido, mas é só uma cópia. Se alguém apagar o quadro, a gente refaz olhando o livro-caixa. O contrário nunca acontece.',
+    'A justificativa técnica do Redis é exatamente uma das que o professor lista: caching de alta velocidade e placar de líderes.'] },
+  { m: 'Visão', t: 'As camadas da API', v: 'v-camadas', f: [
+    'A arquitetura é a primeira recomendada na especificação: MVC em camadas.',
+    'O controller, no arquivo rotas, só traduz HTTP. Ele valida o identificador da URL e chama o serviço.',
+    'O serviço orquestra: abre a transação, decide se a resposta vem do cache ou do banco e sincroniza o Redis.',
+    'O repositório concentra todo o SQL e os comandos do Redis. E o banco, na ponta, guarda e defende os dados, sem confiar que a API está certa.',
+    'Essa separação foi feita depois de ler a seção três ponto um da especificação, que descreve exatamente controller, service e repository.'] },
+  { m: 'Visão', t: 'A estrutura do repositório', v: 'v-estrutura', f: [
+    'O repositório é um monorepo com três partes: db para o SQL, api para o back-end e web para o front.',
+    'Na pasta db, os scripts são numerados e rodam em ordem: schema, índices, views, regras e povoamento. A pasta testes guarda os testes do banco.',
+    'Na pasta scripts ficam os comandos que você vai usar: recriar o banco, testar o banco, testar a API, medir o índice, medir o cache e conferir o placar.',
+    'E em docs fica a especificação, o manual, os resultados das medições e esta videoaula.'] },
+  { m: 'Visão', t: 'Rodando o projeto', v: 'v-executar', f: [
+    'Para rodar, são três comandos. Copiar o arquivo de ambiente, subir o Docker Compose e recriar o banco.',
+    'O Docker Compose sobe três contêineres: o PostgreSQL, o Redis e a API. É o segundo entregável da especificação.',
+    'O script recriar banco apaga tudo e roda os cinco arquivos SQL em uns vinte e cinco segundos. No fim, ele mostra as contagens: cento e quarenta mil, quinhentas e setenta e quatro tentativas.',
+    'A rota saúde confirma que a API fala com os dois bancos.'] },
+  { m: 'Modelagem', t: 'Do MER às 16 tabelas', v: 'v-tabelas', f: [
+    'A aula dois revisou a tradução do modelo conceitual para o relacional. O EJ Quest segue as regras à risca.',
+    'Entidades viram tabelas. Relacionamento um para muitos vira chave estrangeira no lado muitos, como o módulo apontando para a trilha.',
+    'Relacionamento muitos para muitos vira tabela associativa. Vínculo diretoria liga usuário e diretoria, e ainda guarda o papel. Matrícula liga usuário e trilha.',
+    'São dezesseis tabelas em quatro grupos: acesso, conteúdo, participação e recompensa.'] },
+  { m: 'Modelagem', t: 'A peça-chave: participação na avaliação', v: 'v-participacao', f: [
+    'Se o professor perguntar qual tabela é a mais importante, a resposta é participação avaliação.',
+    'Siga o Gabriel. Ele tem uma matrícula na trilha. A matrícula com a avaliação desafio forma a participação trezentos. Nela ficam as tentativas: a primeira recebeu ajustes, a segunda foi aprovada.',
+    'A participação faz quatro coisas. Agrupa as tentativas. Garante que o par matrícula e avaliação só existe uma vez. É a linha travada na aprovação. E é a chave primária da conclusão e da pontuação.',
+    'Esse último ponto é o mais forte: como chave primária não repete, é impossível existir duas conclusões para a mesma participação, mesmo com bug na API.'] },
+  { m: 'Modelagem', t: 'Terceira forma normal', v: 'v-3fn', f: [
+    'Normalizar é guardar cada fato num lugar só.',
+    'O exemplo clássico do projeto: a tentativa não guarda o usuário. Ele é alcançado pela participação e pela matrícula. Se guardasse de novo, uma tentativa poderia dizer usuário doze enquanto a matrícula dela diz usuário quinze. Isso é dependência transitiva, e a terceira forma normal elimina.',
+    'O preço são mais JOINs. E aqui está a frase que vale guardar para a apresentação: a normalização cria o problema que o resto da disciplina resolve. A view organiza, o índice acelera e o cache evita repetir.'] },
+  { m: 'Schema', t: 'Restrições: o banco se defendendo', v: 'v-restricoes', f: [
+    'Agora o código. O banco não confia na API: ele se defende com restrições.',
+    'O e-mail é único sem diferenciar maiúsculas. Um unique comum deixaria conviver Gabriel com G maiúsculo e com g minúsculo. O índice único sobre lower de e-mail não deixa.',
+    'Na alternativa, um índice único parcial: só as linhas com correta igual a verdadeiro entram no índice. Resultado: no máximo uma alternativa correta por questão.',
+    'E toda chave estrangeira usa on delete restrict. Apagar um usuário com histórico é recusado. Desligar é mudar ativo para falso.'] },
+  { m: 'Schema', t: 'Chave estrangeira composta', v: 'v-fkcomposta', f: [
+    'Duas restrições merecem destaque, porque mostram domínio do assunto.',
+    'Na conclusão, a chave estrangeira composta garante que a tentativa que conclui a participação pertence a ela. Sem isso, daria para concluir a participação do Gabriel com a tentativa da Ana.',
+    'Na resposta, a chave composta garante que a alternativa escolhida existe naquela questão.',
+    'Detalhe técnico: para a chave composta funcionar, o lado referenciado precisa de unique no par. Por isso a tentativa tem um unique que parece redundante, e não é.'] },
+  { m: 'Schema', t: 'A armadilha do NULL no CHECK', v: 'v-null', f: [
+    'Esta é uma história ótima para contar, porque mostra que os testes servem para achar erro.',
+    'A regra era: quiz precisa de nota mínima, desafio não tem. A primeira versão do check parecia certa.',
+    'Mas um check só recusa quando a expressão dá falso. Se der nulo, ele aceita. Com a nota nula, nulo between zero e cem dá nulo, e nulo ou falso dá nulo. O check aceitou.',
+    'O teste dez mostrou: falhou, o banco aceitou. A correção foi exigir is not null. E o mesmo erro existia no parecer obrigatório dos ajustes, que também foi corrigido.'] },
+  { m: 'Schema', t: 'Índice: medir antes de afirmar', v: 'v-indice', f: [
+    'O planejamento previa um índice por participação e data de envio. Eu medi: zero vírgula vinte e cinco milissegundos sem ele e zero vírgula vinte e oito com ele. Nenhum ganho.',
+    'O motivo: os uniques que começam pela participação já tinham criado índices, e o planejador usou um deles. Índice que não ajuda só custa, porque deixa todo insert mais lento. Ele saiu.',
+    'Entrou um índice na data de envio, para o painel do gestor. As vinte entregas mais recentes caem de cinquenta e três milissegundos, com varredura completa, para zero vírgula vinte e seis, lendo o índice de trás para frente.',
+    'Já a contagem dos últimos trinta dias ganha menos, cerca de três vezes, porque pega quase nove por cento da tabela. Quanto mais seletiva a consulta, mais o índice ajuda.'] },
+  { m: 'Regras no banco', t: 'Views', v: 'v-views', f: [
+    'A aula cinco trata de três objetos programáveis: views, procedures e triggers. Vamos um por um.',
+    'A view do ranking esconde o caminho dos três JOINs e filtra quem está ativo. Desligado sai do ranking, mas o histórico fica.',
+    'Pelas categorias da aula, as três views do projeto são complexas, porque têm JOIN e agrupamento. Nenhuma é materializada. E não são atualizáveis: insert numa view com group by dá erro. É exatamente a questão um do quiz da aula.',
+    'E lembre: view não deixa nada mais rápido. Ela organiza. Quem acelera é o índice e o cache.'] },
+  { m: 'Regras no banco', t: 'Trigger AFTER: os pontos nascem com a conclusão', v: 'v-trigger', f: [
+    'A trigger de pontos dispara depois de cada insert em conclusão, uma vez por linha.',
+    'Ela lê a pseudo tabela NEW, que é a linha recém inserida, busca quantos pontos a avaliação vale, e insere a pontuação com o mesmo horário da conclusão. Esse horário é o desempate do ranking.',
+    'O ponto principal: a trigger roda dentro da mesma transação. Se ela falhar, a conclusão também é desfeita. Conclusão sem pontos, ou pontos sem conclusão, não existe.',
+    'E por que trigger? Porque assim qualquer caminho que crie uma conclusão gera os pontos: a procedure, a carga ou um insert manual.'] },
+  { m: 'Regras no banco', t: 'Trigger BEFORE: o histórico é imutável', v: 'v-imutavel', f: [
+    'Depois de ler a aula cinco, entrou uma segunda trigger, de outro tipo.',
+    'Ela dispara antes de update ou delete em resultado, conclusão e pontuação, e cancela a operação levantando um erro. É a regra dezoito: o histórico não se altera nem se apaga.',
+    'Repare que a função devolve OLD. Em update e delete existe OLD, a linha como estava. Em delete não existe NEW: é a questão seis do quiz da aula.',
+    'A aula diz: se der para resolver com constraint, prefira constraint. Aqui não dá, porque constraint proíbe valores, não operações. Por isso a trigger.'] },
+  { m: 'Regras no banco', t: 'A procedure de aprovação', v: 'v-procedure', f: [
+    'A procedure sp aprovar projeto é o coração da avaliação. O prefixo s p segue a boa prática da aula cinco.',
+    'Ela é chamada com CALL. Recebe a tentativa, o avaliador e o parecer como parâmetros de entrada, e devolve o status num parâmetro INOUT, que entra nulo e sai preenchido.',
+    'São seis passos. Primeiro, trava a participação com for update. Segundo, valida a permissão: precisa ser desafio, não pode ser o dono da entrega, e precisa ser gestor da diretoria. Terceiro, se já existe conclusão, devolve já aprovada e para. Isso é idempotência.',
+    'Quarto e quinto, grava o resultado e a conclusão, e a trigger dá os pontos. Sexto, devolve aprovada.',
+    'A procedure não faz commit. Quem abre e fecha a transação é a API. Assim tudo confirma ou desfaz junto.'] },
+  { m: 'Transações', t: 'ACID no EJ Quest', v: 'v-acid', f: [
+    'A aula seis trata de transações, concorrência e recuperação. Comece pelo ACID.',
+    'Atomicidade: o teste provoca uma falha depois da procedure. Dentro da transação aparecem um resultado, uma conclusão e uma pontuação. Depois do rollback, zero, zero e zero.',
+    'Consistência: vinte e cinco operações proibidas e vinte e cinco recusas.',
+    'Isolamento: o for update faz a segunda aprovação esperar a primeira.',
+    'Durabilidade: o commit só responde depois de o log, o WAL, ir para o disco. É o mito comum da aula: o commit não grava as páginas de dados na hora, grava o log.'] },
+  { m: 'Transações', t: 'Lost update e o FOR UPDATE', v: 'v-lostupdate', f: [
+    'A pergunta disparadora da aula seis é: dois clientes compram o mesmo assento no mesmo milissegundo, como garantir que só um consegue?',
+    'No EJ Quest, é: dois gestores aprovam a mesma entrega no mesmo segundo. Sem trava, os dois leriam que não há conclusão, e os dois gravariam. É a atualização perdida.',
+    'A sessão A trava a linha da participação. A sessão B chega e fica esperando. Quando A confirma, B destrava, relê, vê a conclusão e devolve já aprovada.',
+    'Isso é exatamente o cenário A do script de laboratório que o professor passou: bloqueio pessimista com select for update.'] },
+  { m: 'Transações', t: 'A prova real: duas sessões', v: 'v-duassessoes', f: [
+    'Isso não é teoria. O script testar banco roda duas sessões de verdade.',
+    'A sessão A aprova e segura a trava por três segundos. A sessão B chega um segundo depois e fica parada. Quando A faz commit, B destrava seis milissegundos depois e recebe já aprovada.',
+    'No fim: um resultado, uma conclusão e uma pontuação.',
+    'Na demo ao vivo, abra uma terceira janela durante a espera e rode a consulta de bloqueios do laboratório da aula. Ela mostra que a sessão B está bloqueada pelo processo da sessão A.'] },
+  { m: 'Transações', t: 'Isolamento, 2PL, deadlock e WAL no PostgreSQL', v: 'v-isolamento', f: [
+    'Agora o que o livro não conta sobre o PostgreSQL.',
+    'Read uncommitted, nele, funciona como read committed: nunca existe leitura suja. Read committed é o padrão, e é o que o projeto usa. Repeatable read é implementado como snapshot isolation. E serializable usa SSI, que aborta transações em conflito.',
+    'O for update pega um lock exclusivo, que só sai no commit ou rollback. É o protocolo de duas fases rigoroso da aula.',
+    'Deadlock precisa de ciclo. Cada transação do projeto trava uma linha só, então não forma ciclo. Se formasse, o PostgreSQL detecta em cerca de um segundo e aborta uma.',
+    'E na queda do servidor, o PostgreSQL só refaz, a fase REDO. Ele não precisa da fase UNDO do algoritmo ARIES, porque com o MVCC as versões de transações não confirmadas simplesmente ficam invisíveis.'] },
+  { m: 'Carga', t: '140 mil tentativas reprodutíveis', v: 'v-carga', f: [
+    'A especificação exige pelo menos cem mil registros na entidade principal. O projeto tem cento e quarenta mil tentativas.',
+    'A técnica é generate series: um insert select sobre uma série de números cria milhares de linhas num comando só.',
+    'Para cada participação, sorteia-se quantas tentativas ela tem, e um cross join lateral gera essas linhas.',
+    'A carga é reprodutível: semente fixa e paralelismo desligado. Rodar de novo gera exatamente os mesmos dados.',
+    'E ela respeita as regras: a nota vem das respostas, só a última tentativa pode ser aprovada, e os pontos nascem da mesma trigger da API.'] },
+  { m: 'API', t: 'Uma requisição de ponta a ponta', v: 'v-requisicao', f: [
+    'Agora siga uma aprovação pela API.',
+    'O index aplica o CORS, lê o corpo e o cabeçalho com o usuário. A rota valida o identificador e chama o serviço. O serviço abre a transação e chama o repositório, que executa o CALL da procedure com parâmetros.',
+    'Se a procedure recusar, ela levanta um código próprio, como EJ quatrocentos e três. O arquivo erros traduz para o HTTP certo, sem vazar detalhe interno.',
+    'A resposta diz o status e se o Redis foi atualizado: o ranking invalidado e o placar atualizado.'] },
+  { m: 'API', t: 'A transação na API e a injeção de SQL', v: 'v-transacao', f: [
+    'A função em transação é pequena e importante.',
+    'Ela reserva uma conexão do pool. Por quê? Porque begin, call e commit precisam ir pela mesma conexão. Se cada comando pegasse uma conexão livre qualquer, a transação não valeria nada.',
+    'Se der erro, ela faz rollback, e no finally sempre devolve a conexão ao pool.',
+    'E compare com a aula doze de Programação Web: lá o valor é colado no texto do SQL, o que abre porta para injeção. Aqui, o valor vai separado, com dólar um. O banco nunca interpreta o parecer como comando.'] },
+  { m: 'Redis', t: 'Cache-Aside no top 100', v: 'v-cacheaside', f: [
+    'O primeiro padrão de sincronização é o Cache-Aside, no top cem do ranking.',
+    'A API pergunta ao Redis, com limite de trezentos milissegundos. Se achou, devolve com origem cache. Se não achou, consulta a view no PostgreSQL, grava no Redis por sessenta segundos e devolve com origem postgres.',
+    'Na aprovação, primeiro o commit, depois o delete da chave. Se o delete viesse antes, outra leitura poderia regravar no Redis a versão sem os pontos novos.',
+    'O pior caso é um ranking atrasado em até sessenta segundos. Atrasado, nunca inventado.'] },
+  { m: 'Redis', t: 'Sorted Set e Write-Through', v: 'v-sortedset', f: [
+    'O segundo padrão veio direto da especificação: para gamificação, o professor sugere Sorted Sets como placar de líderes.',
+    'Sorted Set é um conjunto em que cada membro tem uma nota, e o Redis mantém tudo sempre ordenado. A posição de qualquer pessoa sai em tempo logarítmico: uns treze passos para quase seis mil participantes.',
+    'A regra do ranking cabe num número só: os pontos multiplicados por dez bilhões, mais dez bilhões menos os segundos da última concessão. Mais pontos sempre ganham, e no empate, quem chegou antes fica na frente.',
+    'A sincronização é Write-Through: logo depois do commit da aprovação, a API grava o novo score do membro. Só grava se o placar existir, num script Lua atômico. Sem isso, depois de reiniciar o Redis, o placar teria uma pessoa só.'] },
+  { m: 'Redis', t: 'E se o Redis cair?', v: 'v-redisfora', f: [
+    'O teste derruba o Redis no meio. A saúde mostra Redis indisponível, mas o ranking e a posição seguem respondendo, com origem postgres.',
+    'Uma aprovação com o Redis fora é confirmada no PostgreSQL, e a resposta avisa que o cache não foi atualizado.',
+    'Quando o Redis volta, ele volta vazio, porque roda sem disco de propósito. Na primeira leitura, o placar é reconstruído do SQL, já com a aprovação feita durante a queda.',
+    'E o script conferir placar compara as cinco mil oitocentas e setenta e seis posições do Redis com o SQL: zero diferenças.'] },
+  { m: 'Prova', t: 'Testes que acham erro', v: 'v-testes', f: [
+    'Os números dos testes resumem o projeto.',
+    'Vinte e cinco operações proibidas recusadas, zero falhas. Uma conclusão e uma pontuação com dois gestores ao mesmo tempo. Zero diferenças entre o Redis e o SQL.',
+    'E três erros meus que os testes acharam e que foram corrigidos. Isso é um argumento, não uma vergonha: mostra que o teste existe para pegar erro.',
+    'Tudo está guardado na pasta resultados, que também é o seu plano B se algo falhar ao vivo.'] },
+  { m: 'Prova', t: 'Os números', v: 'v-numeros', f: [
+    'A especificação pede comparação com e sem índice, com e sem cache, e a vazão na demonstração.',
+    'O índice leva as vinte entregas mais recentes de cinquenta e três milissegundos para zero vírgula vinte e seis.',
+    'O cache leva o top cem de cinquenta e nove milissegundos para quatro vírgula nove, na mediana.',
+    'Em vazão, com vinte clientes ao mesmo tempo, o top cem vai de cento e cinquenta e nove para oitocentas e noventa e oito requisições por segundo. A posição do usuário vai de cento e quarenta e oito para mil trezentas e quatro.',
+    'Diga com honestidade: são medições locais, tudo na mesma máquina, sem rede no meio.'] },
+  { m: 'Simulação da banca', t: 'A abertura, na sua voz', v: 'v-pitch', f: [
+    'Agora vamos simular a apresentação. Primeiro, a abertura, como você falaria.',
+    'Você: Professor, o EJ Quest resolve um problema que eu vivo na Rocket: a cada gestão, a empresa júnior perde conhecimento. A plataforma organiza trilhas por diretoria, com quizzes e um desafio final avaliado pelo gestor, e cada aprovação vira pontos num ranking.',
+    'Você: Para isso usei persistência poliglota. O PostgreSQL é a fonte oficial, com dezesseis tabelas na terceira forma normal, transações, views, procedures e triggers. O Redis guarda só cópias: o top cem em Cache-Aside e o placar em Sorted Set com Write-Through.',
+    'Você: Vou mostrar três coisas: o banco recusando o que é proibido, dois gestores aprovando a mesma entrega no mesmo segundo sem gerar ponto duplicado, e os números com e sem índice e cache.'] },
+  { m: 'Simulação da banca', t: 'Perguntas da banca, parte 1', v: 'v-banca1', f: [
+    'Professor: Por que dois bancos? Um PostgreSQL não daria conta?',
+    'Você: Daria em volume: cem mil linhas não deixam o PostgreSQL lento. O Redis entra porque o ranking é uma agregação lida muitas vezes e mudada poucas. Medido: oitocentas e noventa e oito contra cento e cinquenta e nove requisições por segundo.',
+    'Professor: Por que Redis e não MongoDB?',
+    'Você: O que vai para o NoSQL são valores prontos com prazo de validade e um placar ordenado. Isso é chave-valor e Sorted Set. Não tenho documentos de estrutura variável.',
+    'Professor: O que impede ponto duplicado?',
+    'Você: Três camadas: o for update na participação, a idempotência da procedure e a chave primária de conclusão e pontuação.',
+    'Professor: Mostre a terceira forma normal.',
+    'Você: Tentativa e pontuação não guardam o usuário. Ele vem pela participação e pela matrícula. Guardar de novo seria dependência transitiva.'] },
+  { m: 'Simulação da banca', t: 'Perguntas da banca, parte 2', v: 'v-banca2', f: [
+    'Professor: Qual nível de isolamento você usa?',
+    'Você: Read committed, o padrão do PostgreSQL, com bloqueio explícito for update. Serializable também resolveria, mas obrigaria a API a repetir transações.',
+    'Professor: Seu sistema pode ter deadlock?',
+    'Você: Cada transação trava uma linha só, então não forma ciclo. Se formasse, o PostgreSQL detecta e aborta uma das transações.',
+    'Professor: Por que a imutabilidade é trigger e não constraint?',
+    'Você: Constraint proíbe valores, não operações. Para proibir update e delete, só uma trigger before.',
+    'Professor: E se o Redis cair no meio da aprovação?',
+    'Você: A aprovação já está confirmada no PostgreSQL. A resposta avisa que o cache não foi atualizado, e quando o Redis volta, vazio, o placar é reconstruído do SQL.'] },
+  { m: 'Simulação da banca', t: 'Recortes: diga antes que perguntem', v: 'v-recortes', f: [
+    'Feche a apresentação declarando os recortes. Isso passa segurança.',
+    'A identificação pelo cabeçalho não é segurança: é um atalho para focar no banco. Login de verdade, com senha criptografada, entra em Programação Web.',
+    'As telas ligadas à API também são a fase de Programação Web: rotas, props, ícones, use state, use effect e axios, exatamente o que o professor de Web pede.',
+    'E a carga é sintética: o volume foi escolhido, não observado.'] },
+  { m: 'Encerramento', t: 'Como estudar a partir daqui', v: 'v-estudo', f: [
+    'Para fechar, o seu caminho até a apresentação.',
+    'Releia a revisão geral do manual. Rode a demo do capítulo seis uma vez inteira, com a terceira janela mostrando o bloqueio.',
+    'Responda em voz alta, sem olhar, as perguntas da banca. Copie a tabela de números para o slide. E guarde o plano B: as saídas na pasta resultados.',
+    'E a regra do projeto continua valendo: o que você não conseguir explicar sai da demo. Boa apresentação, Fideles.'] },
+];
+
+// ============================================================ PLAYER
+const $ = (id) => document.getElementById(id);
+let atual = 0, tocando = false, fila = [], idxFala = 0, vozes = [], timer = null;
+const sintese = 'speechSynthesis' in window ? window.speechSynthesis : null;
+
+function montarIndice() {
+  const nav = $('indice'); let ultimo = '';
+  CENAS.forEach((c, i) => {
+    if (c.m !== ultimo) { const h = document.createElement('h3'); h.textContent = c.m; nav.appendChild(h); ultimo = c.m; }
+    const b = document.createElement('button'); b.textContent = (i + 1) + '. ' + c.t;
+    b.onclick = () => { irPara(i, tocando); }; b.id = 'item-' + i; nav.appendChild(b);
+  });
+}
+
+function frasesDe(cena) {
+  const out = [];
+  cena.f.forEach((p) => {
+    let quem = null, texto = p;
+    const m = p.match(/^(Professor|Você):\s*/);
+    if (m) { quem = m[1]; texto = p.slice(m[0].length); }
+    (texto.match(/[^.!?]+[.!?]+|[^.!?]+$/g) || [texto]).forEach((s) => out.push({ quem, s: s.trim() }));
+  });
+  return out;
+}
+
+function mostrar(i) {
+  const c = CENAS[i];
+  $('modulo').textContent = c.m + ' · cena ' + (i + 1) + ' de ' + CENAS.length;
+  $('titulo').textContent = c.t;
+  $('palco').innerHTML = ''; $('palco').appendChild(document.getElementById(c.v).content.cloneNode(true));
+  fila = frasesDe(c); idxFala = 0; desenharLegenda();
+  document.querySelectorAll('nav button').forEach((b) => b.classList.remove('atual'));
+  const it = $('item-' + i); if (it) { it.classList.add('atual'); it.scrollIntoView({ block: 'nearest' }); }
+  $('progresso').style.width = ((i + 1) / CENAS.length * 100) + '%';
+}
+
+function desenharLegenda() {
+  const leg = $('legenda'); leg.innerHTML = '';
+  let ultimoQuem = undefined;
+  fila.forEach((f, k) => {
+    if (f.quem && f.quem !== ultimoQuem) { const q = document.createElement('span'); q.className = 'quem dita'; q.textContent = ' ' + f.quem + ': '; leg.appendChild(q); }
+    ultimoQuem = f.quem;
+    const s = document.createElement('span'); s.textContent = f.s + ' ';
+    s.className = k < idxFala ? 'dita' : (k === idxFala && tocando ? 'falando' : '');
+    leg.appendChild(s);
+  });
+}
+
+function vozEscolhida() { return vozes[$('voz').value] || null; }
+
+function falarProxima() {
+  clearTimeout(timer);
+  if (!tocando) return;
+  if (idxFala >= fila.length) {
+    if (atual < CENAS.length - 1) { timer = setTimeout(() => { irPara(atual + 1, true); }, 900); }
+    else { pausar(); }
+    return;
+  }
+  desenharLegenda();
+  const f = fila[idxFala];
+  const vel = Number($('velocidade').value);
+  if (sintese && vozes.length) {
+    const u = new SpeechSynthesisUtterance(f.s);
+    const v = vozEscolhida(); if (v) { u.voice = v; u.lang = v.lang; } else { u.lang = 'pt-BR'; }
+    u.rate = vel;
+    u.pitch = f.quem === 'Professor' ? 0.75 : (f.quem === 'Você' ? 1.15 : 1.0);
+    u.onend = () => { idxFala++; falarProxima(); };
+    u.onerror = () => { idxFala++; falarProxima(); };
+    sintese.speak(u);
+  } else {
+    // sem voz: avança no tempo de leitura (~170 palavras por minuto)
+    const ms = Math.max(1500, f.s.split(/\s+/).length / 170 * 60000 / vel);
+    timer = setTimeout(() => { idxFala++; falarProxima(); }, ms);
+  }
+}
+
+function tocar() { tocando = true; $('tocar').textContent = '⏸ Pausar'; if (sintese) sintese.cancel(); falarProxima(); }
+function pausar() { tocando = false; $('tocar').textContent = '▶ Tocar'; clearTimeout(timer); if (sintese) sintese.cancel(); desenharLegenda(); }
+function irPara(i, continuar) {
+  if (i < 0 || i >= CENAS.length) return;
+  clearTimeout(timer); if (sintese) sintese.cancel();
+  atual = i; mostrar(i);
+  try { localStorage.setItem('ejq-videoaula-cena', String(i)); } catch (e) {}
+  if (continuar) { tocando = true; $('tocar').textContent = '⏸ Pausar'; setTimeout(falarProxima, 250); }
+}
+
+function carregarVozes() {
+  if (!sintese) return;
+  const todas = sintese.getVoices();
+  const pt = todas.filter((v) => /^pt/i.test(v.lang));
+  vozes = pt.length ? pt.sort((a, b) => (b.lang === 'pt-BR') - (a.lang === 'pt-BR')) : todas;
+  const sel = $('voz'); sel.innerHTML = '';
+  if (!vozes.length) { const o = document.createElement('option'); o.textContent = 'sem voz (só legenda)'; sel.appendChild(o); return; }
+  vozes.forEach((v, k) => { const o = document.createElement('option'); o.value = k; o.textContent = v.name + ' (' + v.lang + ')'; sel.appendChild(o); });
+}
+
+$('tocar').onclick = () => (tocando ? pausar() : tocar());
+$('anterior').onclick = () => irPara(atual - 1, tocando);
+$('proxima').onclick = () => irPara(atual + 1, tocando);
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'SELECT') return;
+  if (e.code === 'Space') { e.preventDefault(); tocando ? pausar() : tocar(); }
+  if (e.code === 'ArrowRight') irPara(atual + 1, tocando);
+  if (e.code === 'ArrowLeft') irPara(atual - 1, tocando);
+});
+if (sintese) { carregarVozes(); sintese.onvoiceschanged = carregarVozes; }
+montarIndice();
+let inicial = 0; try { inicial = Number(localStorage.getItem('ejq-videoaula-cena')) || 0; } catch (e) {}
+irPara(Math.min(inicial, CENAS.length - 1), false);
+</script>
+</body>
+</html>

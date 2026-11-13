@@ -54,9 +54,9 @@ de onde não dá para fugir.
 
 | Procedure | Quem chama | O que faz |
 |---|---|---|
-| `aprovar_projeto(tentativa, avaliador, parecer, INOUT status)` | gestor | Trava, valida, grava resultado "aprovada" e conclusão (a trigger dá os pontos) |
-| `pedir_ajustes(tentativa, avaliador, parecer, INOUT status)` | gestor | Trava, valida, grava resultado "ajustes" com parecer obrigatório |
-| `enviar_projeto(usuario, avaliacao, link, descricao, INOUT id, INOUT numero)` | membro | Cria a participação na 1ª vez, aplica RN06, RN07 e RN08 e numera |
+| `sp_aprovar_projeto(tentativa, avaliador, parecer, INOUT status)` | gestor | Trava, valida, grava resultado "aprovada" e conclusão (a trigger dá os pontos) |
+| `sp_pedir_ajustes(tentativa, avaliador, parecer, INOUT status)` | gestor | Trava, valida, grava resultado "ajustes" com parecer obrigatório |
+| `sp_enviar_projeto(usuario, avaliacao, link, descricao, INOUT id, INOUT numero)` | membro | Cria a participação na 1ª vez, aplica RN06, RN07 e RN08 e numera |
 
 🧠 **Procedure x function:** procedure é chamada com `CALL` e serve para **executar uma ação**. Function
 é chamada dentro de `SELECT` e serve para **calcular um valor**. O `INOUT` é como a procedure
@@ -66,7 +66,7 @@ de onde não dá para fugir.
 `psql`). Assim a procedure, a trigger e o que mais estiver na transação confirmam ou desfazem
 juntos.
 
-### O passo a passo de `aprovar_projeto`
+### O passo a passo de `sp_aprovar_projeto`
 
 ```
 1. fn_travar_tentativa: acha a participação da tentativa e trava a linha (SELECT ... FOR UPDATE)

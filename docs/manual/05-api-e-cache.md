@@ -13,7 +13,7 @@
 POST /tentativas/126087/aprovar   (X-Usuario-Id: 2, corpo { "parecer": "Ótimo trabalho" })
   index.js         express.json() lê o corpo · usuario-simulado.js lê o cabeçalho
   rotas.js         valida o :id, chama o serviço           ← controller: sem regra de negócio
-  servicos/aprovacao.js   emTransacao → CALL aprovar_projeto → COMMIT → DEL no Redis
+  servicos/aprovacao.js   emTransacao → CALL sp_aprovar_projeto → COMMIT → DEL no Redis
   transacao.js     BEGIN / COMMIT / ROLLBACK numa conexão reservada
   erros.js         SQLSTATE EJ403 → HTTP 403 etc.
 ← 200 { "status": "aprovada", "ranking_invalidado": true }
@@ -38,7 +38,7 @@ não: o BEGIN poderia ir por uma conexão e o CALL por outra. Por isso `emTransa
 `pool.connect()` e usa **o mesmo** `client` do BEGIN ao COMMIT, e devolve no `finally`.
 
 🧠 **SQL injection:** a API nunca concatena valor no texto do SQL. `client.query('CALL
-aprovar_projeto($1, $2, $3, NULL)', [id, avaliador, parecer])` manda os valores separados, e o
+sp_aprovar_projeto($1, $2, $3, NULL)', [id, avaliador, parecer])` manda os valores separados, e o
 banco nunca interpreta o parecer como comando.
 
 ## 5.3 Cache-Aside no ranking (DEC-005)

@@ -184,7 +184,7 @@ Toda tela do Figma tem uma nota embaixo com requisito, endpoint e tabelas. Exemp
 
 | Tela | Requisitos | Endpoint | O que acontece no banco |
 |---|---|---|---|
-| 10 Avaliar entrega | RF08, RNF02, RNF03, RN09 | `POST /tentativas/:id/aprovar` | `BEGIN` → `CALL aprovar_projeto` (trava a participação) → insere resultado e conclusão → **trigger** insere pontuação → `COMMIT` → API apaga a chave do ranking no Redis |
+| 10 Avaliar entrega | RF08, RNF02, RNF03, RN09 | `POST /tentativas/:id/aprovar` | `BEGIN` → `CALL sp_aprovar_projeto` (trava a participação) → insere resultado e conclusão → **trigger** insere pontuação → `COMMIT` → API apaga a chave do ranking no Redis |
 
 O mapa completo está na página "Fluxos e notas" do Figma.
 

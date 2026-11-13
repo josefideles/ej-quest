@@ -15,10 +15,12 @@
 | 1 | Cap. 1 (modelo, 3FN, restrições) | 40 min | Base de tudo; já estava na fila |
 | 2 | Cap. 3 (trigger, procedure, ACID, `FOR UPDATE`) | 35 min | É o coração da avaliação |
 | 3 | Cap. 5 (API e cache) | 30 min | Segunda metade da persistência poliglota |
-| 4 | Cap. 2 e 4 (schema, índice, carga) | 45 min | Detalhes e as histórias dos testes |
-| 5 | Este capítulo + **rodar a demo uma vez inteira** | 35 min | Tirar o susto antes da hora |
+| 4 | **Revisão geral** (`revisao-geral.md`): o que mudou pelos materiais, Sorted Set, aulas 5 e 6 | 45 min | Liga o projeto ao que o professor ensinou |
+| 5 | Cap. 2 e 4 (schema, índice, carga) | 45 min | Detalhes e as histórias dos testes |
+| 6 | Este capítulo + **rodar a demo uma vez inteira** | 35 min | Tirar o susto antes da hora |
 
-Total: cerca de 3 h. Se faltar tempo, corte o item 4 e leia só as seções ❓ dele.
+Total: cerca de 4 h. Se faltar tempo, corte o item 5 e leia só as seções ❓ dele.
+Para ver em vez de ler: a videoaula em `docs/videoaula/` percorre o mesmo caminho.
 
 **Gate (constituição 10):** depois de cada capítulo, explique em voz alta, sem olhar, as perguntas
 ❓ do fim. O que não sair, marque em "Minhas notas" e traga para revisar comigo.
@@ -30,10 +32,11 @@ Total: cerca de 3 h. Se faltar tempo, corte o item 4 e leia só as seções ❓ 
 | 1 | Problema | 1 min | Tela do protótipo (Jornada e Ranking) | "Gestão do conhecimento gamificada para EJs: trilhas, desafios avaliados e ranking." |
 | 2 | Arquitetura | 2 min | Diagrama de camadas (cap. 0) | "PostgreSQL é o livro-caixa; Redis é o quadro branco. Se apagar o quadro, refaço pelo livro." |
 | 3 | Modelo | 3 min | ER (cap. 1), `participacao_avaliacao` | "A normalização cria os JOINs que o resto da disciplina resolve: view organiza, índice acelera, cache evita repetir." |
-| 4 | O banco se defende | 2 min | `./scripts/testar-banco.sh` (seção 1) | "13 operações proibidas, 13 recusas. E o teste achou um erro meu: CHECK aceita NULL." |
-| 5 | A regra crítica | 3 min | **Demo ao vivo das duas janelas** (6.3) | "Dois gestores, mesma entrega, mesmo segundo: uma conclusão, um ponto." |
-| 6 | Números | 2 min | `indice.txt` e `cache.txt` | "Medi antes de afirmar. O índice que eu planejei não ajudava, e eu troquei." |
-| 7 | Recortes e próximos passos | 1 min | Seção 6.5 | "Login por cabeçalho é recorte declarado; telas e login real entram em PW1." |
+| 4 | O banco se defende | 2 min | `./scripts/testar-banco.sh` | "25 operações proibidas, 25 recusas. E o teste achou um erro meu: CHECK aceita NULL." |
+| 5 | A regra crítica | 3 min | **Demo ao vivo das duas janelas** (6.3), com o lock visto na 3ª janela | "Dois gestores, mesma entrega, mesmo segundo: uma conclusão, um ponto." |
+| 6 | SQL ↔ Redis | 2 min | Cache-Aside e Sorted Set (revisão R.2), `conferir-placar.sh` | "Dois padrões de sincronização. O placar do Redis bate com o SQL nas 5.876 posições." |
+| 7 | Números | 2 min | `indice.txt` e `cache.txt` | "Medi antes de afirmar. O índice que eu planejei não ajudava, e eu troquei. Com o Redis, a vazão do ranking vai de 159 para 898 req/s." |
+| 8 | Recortes e próximos passos | 1 min | Seção 6.5 | "Login por cabeçalho é recorte declarado; telas e login real entram em PW1." |
 | | Perguntas | 1 min+ | Seção 6.6 | |
 
 ## 6.3 A demo, comando por comando
@@ -65,19 +68,33 @@ Anote `T` (tentativa) e `P` (participação). Então:
 | Passo | Janela A | Janela B | O que dizer |
 |---|---|---|---|
 | 1 | `BEGIN;` | | "Abro a transação, como a API faz." |
-| 2 | `CALL aprovar_projeto(T, 2, 'ok');` → `aprovada` | | "O gestor de Projetos aprovou, mas ainda não confirmou." |
-| 3 | | `CALL aprovar_projeto(T, 1, 'ok');` → **fica parada** | "O gestor geral tenta aprovar a mesma entrega. Ela espera no `FOR UPDATE`." |
+| 2 | `CALL sp_aprovar_projeto(T, 2, 'ok');` → `aprovada` | | "O gestor de Projetos aprovou, mas ainda não confirmou." |
+| 3 | | `CALL sp_aprovar_projeto(T, 1, 'ok');` → **fica parada** | "O gestor geral tenta aprovar a mesma entrega. Ela espera no `FOR UPDATE`." |
 | 4 | `COMMIT;` | → `ja_aprovada` | "A primeira confirmou. A segunda destravou, viu a conclusão e não deu ponto de novo." |
 | 5 | `SELECT count(*) FROM pontuacao WHERE id_participacao = P;` → `1` | | "Um ponto só." |
+
+**Extra (aula 6):** entre os passos 3 e 4, numa **terceira janela** do `psql`, mostre quem está
+travando quem, com a consulta do próprio laboratório do professor:
+
+```sql
+SELECT pid, pg_blocking_pids(pid) AS bloqueado_por, state, left(query, 60) AS comando
+FROM pg_stat_activity WHERE cardinality(pg_blocking_pids(pid)) > 0;
+```
+
+"A sessão B está bloqueada pelo PID da sessão A: é o lock exclusivo do `FOR UPDATE`, que só sai
+no COMMIT (Strict 2PL)." 
 
 **Cache e Redis fora** (num terceiro terminal, se der tempo):
 
 ```bash
 curl -s localhost:3000/ranking -H 'X-Usuario-Id: 2' | head -c 120   # origem: postgres
 curl -s localhost:3000/ranking -H 'X-Usuario-Id: 2' | head -c 120   # origem: cache
+curl -s localhost:3000/ranking/eu -H 'X-Usuario-Id: 8'              # posição pelo Sorted Set
 docker compose stop cache
 curl -s localhost:3000/ranking -H 'X-Usuario-Id: 2' | head -c 120   # origem: postgres, sem erro
+curl -s localhost:3000/ranking/eu -H 'X-Usuario-Id: 8'              # mesma posição, pelo SQL
 docker compose start cache
+./scripts/conferir-placar.sh                                        # 5.876 posições, 0 diferenças
 ```
 
 ⚠️ **Plano B:** se algo falhar ao vivo, mostre a mesma cena já gravada em
@@ -91,10 +108,11 @@ Docker local. Carga: 140.574 tentativas, semente 0,42.
 
 | Experimento | Sem | Com | Fonte |
 |---|---|---|---|
-| 20 entregas mais recentes (índice) | 41,5 ms · Seq Scan | **0,17 ms** · Index Scan | `indice.txt` |
-| Entregas dos últimos 30 dias (índice) | 34,9 ms · Seq Scan | **7,3 ms** · Index Only Scan | `indice.txt` |
-| `GET /ranking`, mediana (cache) | 43,0 ms · Postgres | **3,0 ms** · Redis | `cache.txt` |
-| `GET /ranking`, p95 (cache) | 58,4 ms | **5,4 ms** | `cache.txt` |
+| 20 entregas mais recentes (índice) | 53,0 ms · Seq Scan | **0,26 ms** · Index Scan | `indice.txt` |
+| Entregas dos últimos 30 dias (índice) | 36,7 ms · Seq Scan | **12,1 ms** · Index Only Scan | `indice.txt` |
+| `GET /ranking`, mediana (cache, uma chamada por vez) | 59,3 ms · Postgres | **4,9 ms** · Redis | `cache.txt` |
+| `GET /ranking`, vazão com 20 clientes | 159 req/s | **898 req/s** | `cache.txt` |
+| `GET /ranking/eu`, vazão com 20 clientes | 148 req/s · `row_number()` | **1.304 req/s** · `ZREVRANK` | `cache.txt` |
 | Índice planejado (histórico da participação) | 0,25 ms | 0,28 ms | DEC-010: não ajudava, saiu |
 
 Diga com honestidade (constituição 8): **são medições locais**, com a API e o banco na mesma
@@ -104,7 +122,10 @@ máquina. Em produção, a rede somaria tempo aos dois lados.
 
 | Chave | Tipo | TTL | Valor | Quem grava | Quem apaga |
 |---|---|---|---|---|---|
-| `ranking:geral:v1` | string (JSON) | 60 s | `{ gerado_em, total_participantes, participantes: [{ posicao, id_usuario, nome, total_pontos, ultima_concessao }] }` (top 100) | `GET /ranking` em cache miss | aprovação nova, depois do COMMIT |
+| `ranking:geral:v1` | string (JSON) | 60 s | `{ gerado_em, total_participantes, participantes: [{ posicao, id_usuario, nome, total_pontos, ultima_concessao }] }` (top 100) | `GET /ranking` em cache miss | aprovação nova, depois do COMMIT (`DEL`) |
+| `ranking:placar:v1` | Sorted Set | 10 min | membro = id do usuário; score = pontos × 10^10 + (10^10 − segundos da última concessão) | reconstrução em `GET /ranking/eu` quando não existe | aprovação nova, depois do COMMIT (`ZADD`, Write-Through) |
+
+Versão completa, com a justificativa: `docs/arquitetura-e-modelagem.md`, seção 4.
 
 O `:v1` no nome permite mudar o formato do JSON no futuro sem ler um valor velho: basta passar a
 usar `:v2`.

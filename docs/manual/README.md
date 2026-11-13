@@ -21,6 +21,7 @@ da spec, vale a spec.
 
 | Cap. | Tema | Quando | Disciplina | Status |
 |---|---|---|---|---|
+| [R](revisao-geral.md) | **Revisão geral pelos materiais de BD2 e PW1** (o que mudou, aulas 5 e 6, Sorted Set, números finais) | qui 12/11 | BD2 e PW1 | ✅ escrito · vale sobre os anteriores |
 | [00](00-visao-e-arquitetura.md) | Visão geral, persistência poliglota e arquitetura | ter 10/11 | BD2 | ✅ escrito |
 | [01](01-ambiente-e-modelagem.md) | Ambiente com Docker e modelagem relacional (ER, 3FN, restrições) | ter 10/11 | BD2 | ✅ escrito |
 | [02](02-schema-e-indices.md) | O schema escrito: DDL, tipos, chaves, CHECK e o índice medido | qui 12/11 | BD2 | ✅ escrito |
