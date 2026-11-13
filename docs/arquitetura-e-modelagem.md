@@ -2,7 +2,7 @@
 
 > Entregável 1 da especificação de Banco de Dados II: diagrama ER (relacional), diagrama de
 > coleções/chaves (NoSQL) e justificativa tecnológica da persistência poliglota.
-> Versão de 12/11/2026. Fonte da verdade do código: `db/*.sql` e `api/src/`.
+> Versão de 12/11/2026. Fonte da verdade do código: `db/*.sql` e `server/src/`.
 
 ## 1. O sistema em uma frase
 
@@ -14,8 +14,8 @@ pontos que alimentam um ranking.
 
 ```mermaid
 flowchart LR
-    U["Navegador<br/>React (web/)"] -->|HTTP + JSON| C
-    subgraph API["API REST · Node.js 22 + Express (api/)"]
+    U["Navegador<br/>React (client/)"] -->|HTTP + JSON| C
+    subgraph API["API REST · Node.js 22 + Express (server/)"]
         C["Controllers<br/>rotas.js"] --> S["Services<br/>servicos/"]
         S --> RSQL["Repository SQL<br/>repositorios/postgres.js"]
         S --> RNOSQL["Repositories NoSQL<br/>cache.js · repositorios/placar-redis.js"]

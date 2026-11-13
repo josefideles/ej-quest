@@ -1,4 +1,5 @@
-# Sobe o ambiente inteiro do EJ Quest: PostgreSQL (fonte oficial), Redis (cópias derivadas) e a API.
+# Sobe o ambiente inteiro do EJ Quest: PostgreSQL (fonte oficial), Redis (cópias derivadas), a API
+# (server/) e o front (client/). Depois de subir, abra http://localhost:8080 no navegador.
 #
 #   docker compose up -d --build   -> sobe tudo. Na PRIMEIRA vez, o PostgreSQL cria as tabelas e a
 #                                     carga de 140 mil tentativas sozinho (db/01 a 05, ~1 min).
@@ -9,7 +10,7 @@
 #   docker compose down -v         -> desliga e APAGA o volume (na próxima subida, a carga é refeita)
 #
 # Funciona sem arquivo .env: todo valor tem um padrão local. Portas podem ser trocadas no .env
-# (PORTA_POSTGRES, PORTA_REDIS, PORTA_API) se já estiverem ocupadas na sua máquina.
+# (PORTA_POSTGRES, PORTA_REDIS, PORTA_API, PORTA_WEB) se já estiverem ocupadas na sua máquina.
 
 services:
   db:
@@ -46,7 +47,7 @@ services:
       - "${PORTA_REDIS:-6380}:6379"
 
   api:
-    build: ./api
+    build: ./server
     environment:
       PORTA: 3000
       DATABASE_URL: postgres://${POSTGRES_USER:-ej_quest}:${POSTGRES_PASSWORD:-ej-quest-local}@db:5432/${POSTGRES_DB:-ej_quest}
@@ -64,6 +65,14 @@ services:
       # O Redis não é condição: a API precisa funcionar mesmo com o cache fora (RNF06).
       cache:
         condition: service_started
+
+  client:
+    # Front React (build estático servido pelo nginx, que também repassa /api para a API).
+    build: ./client
+    ports:
+      - "${PORTA_WEB:-8080}:80"
+    depends_on:
+      - api
 
 volumes:
   dados_postgres:

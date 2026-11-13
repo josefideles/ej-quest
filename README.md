@@ -7,10 +7,9 @@ ranking. Projeto prático de **Banco de Dados II** (persistência poliglota) e b
 
 - **PostgreSQL 16:** fonte oficial. 16 tabelas em 3FN, restrições, views, procedures e triggers.
 - **Redis 7:** cópias derivadas do ranking. Top 100 em **Cache-Aside** e placar em **Sorted Set** com **Write-Through**.
-- **API REST em Node.js 22 + Express:** único componente que acessa os dois bancos.
+- **API REST em Node.js 22 + Express (`server/`):** único componente que acessa os dois bancos.
 
-**Relatório completo da AB2 de BD2:** [`docs/relatorio/RELATORIO.md`](docs/relatorio/RELATORIO.md)
-(também em PDF na mesma pasta).
+- **Front-end em React + Vite (`client/`):** telas do protótipo (login, jornada, lição, quiz, desafio, ranking, perfil e gestão), servidas por nginx.
 
 ---
 
@@ -26,7 +25,7 @@ ranking. Projeto prático de **Banco de Dados II** (persistência poliglota) e b
 | Bash e curl | qualquer | **Só para os scripts de teste.** No Windows, use o **Git Bash** ou o WSL |
 
 Não é preciso instalar PostgreSQL, Redis, Node.js nem Python: tudo roda dentro dos contêineres.
-Portas usadas na sua máquina: **5433** (PostgreSQL), **6380** (Redis) e **3000** (API).
+Portas usadas na sua máquina: **8080** (front), **3000** (API), **5433** (PostgreSQL) e **6380** (Redis).
 
 ### 2. Subir tudo (um comando)
 
@@ -39,25 +38,29 @@ docker compose up -d --build
 Na **primeira** subida, o PostgreSQL cria as tabelas e a carga de **140.574 tentativas** sozinho
 (roda `db/01` a `db/05`). Leva cerca de 1 minuto. O `.env` é **opcional**: sem ele, valem os padrões.
 
-### 3. Conferir
+### 3. Abrir no navegador
 
-```bash
-docker compose ps                     # db precisa estar "healthy"; api e cache "running"
-curl http://localhost:3000/saude      # {"api":"ok","postgres":"ok","redis":"ok"}
-```
+Acesse **http://localhost:8080**. Todos os usuários da carga usam a senha de demonstração `ejquest123`.
 
-Entrar com um usuário da carga (todos usam a senha de demonstração `ejquest123`):
-
-```bash
-curl -X POST http://localhost:3000/login -H "Content-Type: application/json" \
-     -d '{"email":"usuario2@ejquest.test","senha":"ejquest123"}'
-```
+| Para ver | Entre com | O que fazer |
+|---|---|---|
+| Fluxo do membro | `usuario172@ejquest.test` | Jornada → lição → quiz → resultado; ranking e perfil na barra de navegação |
+| Desafio (projeto prático) | `usuario13@ejquest.test` | Jornada → Desafio final → enviar uma nova entrega |
+| Gestão e avaliação | `usuario4@ejquest.test` (gestora de Gestão de Pessoas) | Aba Gestão → Avaliar → aprovar ou pedir ajustes |
+| Gestor geral | `usuario1@ejquest.test` | Gestão de todas as diretorias |
 
 | Usuário | Papel |
 |---|---|
 | `usuario1@ejquest.test` | Gestor geral |
-| `usuario2@ejquest.test`, `usuario3@...`, `usuario4@...` | Gestores de Projetos, Marketing e Gestão de Pessoas |
+| `usuario2@`, `usuario3@`, `usuario4@ejquest.test` | Gestores de Projetos, Marketing e Gestão de Pessoas |
 | `usuario5@ejquest.test` a `usuario6000@ejquest.test` | Membros (1 em cada 50 está desligado e não entra) |
+
+Conferência pelo terminal (opcional):
+
+```bash
+docker compose ps                     # db "healthy"; api, cache e client "running"
+curl http://localhost:3000/saude      # {"api":"ok","postgres":"ok","redis":"ok"}
+```
 
 ### 4. Rodar os testes e as medições (Bash)
 
@@ -72,11 +75,19 @@ Cada script guarda a saída em `docs/resultados/`.
 ./scripts/recriar-banco.sh    # volta ao estado limpo da carga (os testes gravam dados)
 ```
 
+Etapas do banco de forma individual (estrutura, povoamento e testes separados):
+
+```bash
+./scripts/recriar-banco.sh sem-povoamento   # só a estrutura: 01_schema, 02_indices, 03_views, 04_regras
+./scripts/rodar-sql.sh 05_povoamento.sql    # só o povoamento (carga sintética)
+./scripts/rodar-sql.sh 03_views.sql         # qualquer arquivo de db/, um por vez
+```
+
 ### 5. Problemas comuns
 
 | Sintoma | Causa | Solução |
 |---|---|---|
-| `port is already allocated` | Porta 5433, 6380 ou 3000 ocupada | `cp .env.example .env`, troque `PORTA_POSTGRES`, `PORTA_REDIS` ou `PORTA_API` e suba de novo |
+| `port is already allocated` | Porta 8080, 3000, 5433 ou 6380 ocupada | `cp .env.example .env`, troque `PORTA_WEB`, `PORTA_API`, `PORTA_POSTGRES` ou `PORTA_REDIS` e suba de novo |
 | `db` fica em `starting` por ~1 min | É a carga inicial rodando | Espere ou acompanhe com `docker compose logs -f db` |
 | `/saude` responde `postgres: indisponível` | O banco ainda não terminou a carga | Espere o `db` ficar `healthy` |
 | `\r: command not found` ao rodar um script | Arquivo com fim de linha do Windows | O `.gitattributes` evita isso num clone novo. Se aparecer, clone o repositório de novo |
@@ -87,8 +98,9 @@ Cada script guarda a saída em `docs/resultados/`.
 ### 6. Desligar
 
 ```bash
-docker compose down        # desliga; os dados ficam no volume
-docker compose down -v     # desliga e apaga o banco
+docker compose stop        # pausa os contêineres (volta com docker compose start)
+docker compose down        # desliga e remove os contêineres; os dados ficam no volume
+docker compose down -v     # desliga e apaga o banco (na próxima subida, a carga é refeita)
 ```
 
 ---
@@ -96,7 +108,7 @@ docker compose down -v     # desliga e apaga o banco
 ## Endpoints
 
 Autenticação: `POST /login` devolve um token; envie `Authorization: Bearer <token>` nas demais rotas.
-Em modo demonstração (padrão local), os scripts usam o cabeçalho `X-Usuario-Id` (DEC-014).
+Em modo demonstração (padrão local), os scripts de teste usam o cabeçalho `X-Usuario-Id`. No front, as rotas ficam sob `/api` (o nginx repassa para a API).
 
 | Método | Rota | O que faz |
 |---|---|---|
@@ -107,37 +119,39 @@ Em modo demonstração (padrão local), os scripts usam o cabeçalho `X-Usuario-
 | GET | `/avaliacoes/:id` | Quiz para responder, **sem** gabarito |
 | POST | `/avaliacoes/:id/respostas` | Envia o quiz; o banco corrige e, se aprovado, dá os pontos |
 | POST | `/avaliacoes/:id/tentativas` | Envia o link do desafio final |
+| GET | `/avaliacoes/:id/minhas-tentativas` | Histórico das minhas entregas, com decisão e parecer |
 | GET | `/fila` | Entregas aguardando parecer no escopo do gestor |
+| GET | `/gestao/resumo` | Números da diretoria e progresso dos membros (painel do gestor) |
 | POST | `/tentativas/:id/aprovar` · `/ajustes` | Parecer do gestor (transação com `FOR UPDATE`) |
 | GET | `/matriculas/:id/progresso` | Progresso e próxima atividade |
 | GET | `/ranking` · `/ranking/eu` | Top 100 (Cache-Aside) · minha posição (Sorted Set) |
 
-Contrato completo, com entradas, saídas e erros: [`docs/spec/03-arquitetura.md`](docs/spec/03-arquitetura.md).
-
 ## Estrutura
 
 ```
-db/                     SQL, rodado em ordem na primeira subida
-  01_schema.sql         16 tabelas e restrições (3FN), extensão pgcrypto
-  02_indices.sql        índice extra, escolhido por medição (DEC-010)
-  03_views.sql          vw_ranking_consolidado, vw_progresso_membro, vw_fila_avaliacao
-  04_regras.sql         triggers e procedures sp_ (aprovar, ajustes, enviar, responder quiz), login
-  05_povoamento.sql     carga sintética reprodutível (semente 0,42)
-  testes/               testes de restrições e regras (rodam com ROLLBACK)
-api/src/                Node.js + Express
+client/                 front-end React + Vite (React Router, axios, react-icons)
+  src/pages/            uma página por tela do protótipo (01 a 11)
+  src/components/       moldura (barra superior e navegação), mascote, peças reutilizáveis
+  src/api.js            cliente axios: token no cabeçalho, chamadas em /api
+  Dockerfile · nginx.conf   build estático servido pelo nginx, que repassa /api para a API
+server/src/             back-end Node.js + Express (monólito em camadas)
   rotas.js              Controllers
   servicos/             Services: regra, transação e sincronização com o Redis
   repositorios/         Repositories: todo o SQL (postgres.js) e o Sorted Set (placar-redis.js)
   cache.js              Repository do Redis (strings com TTL), tolerante a falha
   autenticacao.js       token assinado e identificação
   transacao.js · erros.js
+server/scripts/medir.js medidor de latência e vazão (roda dentro do contêiner da API)
+db/                     SQL, rodado em ordem na primeira subida
+  01_schema.sql         16 tabelas e restrições (3FN), extensão pgcrypto
+  02_indices.sql        índice extra, escolhido por medição
+  03_views.sql          vw_ranking_consolidado, vw_progresso_membro, vw_fila_avaliacao
+  04_regras.sql         triggers e procedures sp_ (aprovar, ajustes, enviar, responder quiz), login
+  05_povoamento.sql     carga sintética reprodutível (semente 0,42)
+  testes/               testes de restrições e regras (rodam com ROLLBACK)
 scripts/                subir, testar, medir e conferir
 docs/
-  relatorio/            relatório da AB2 de BD2
   arquitetura-e-modelagem.md   ER, modelo chave-valor e justificativa
-  spec/                 especificação SDD: requisitos, arquitetura, plano, decisões DEC-001 a DEC-014
   resultados/           saída dos testes e das medições (evidências)
-  manual/ · videoaula/  material de estudo do autor
-web/                    front-end React (Vite), em desenvolvimento para Programação Web I
-docker-compose.yml
+docker-compose.yml      db (PostgreSQL), cache (Redis), api e client
 ```

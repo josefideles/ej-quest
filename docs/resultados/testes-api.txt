@@ -1,4 +1,4 @@
-# Testes da API · 12/11/2026 22:52
+# Testes da API · 13/11/2026 17:26
 
 Entregas usadas: 126087 (membro 8, avaliação 20, matrícula 8), 126094 e 126202. Gestor de Projetos: 2.
 
@@ -30,9 +30,9 @@ Membro 6, quiz 11 (ainda não aprovado), trilha 4.
 > POST /avaliacoes/11/respostas  (token de login)
   HTTP 400  {"erro":"responda cada uma das 3 questões uma única vez, com alternativas válidas"}
 > POST /avaliacoes/11/respostas  (token de login)
-  HTTP 201  {"id_tentativa":140575,"percentual":0,"decisao":"reprovada","ranking_invalidado":false,"placar_atualizado":false}
+  HTTP 201  {"id_tentativa":140576,"percentual":0,"decisao":"reprovada","ranking_invalidado":false,"placar_atualizado":false}
 > POST /avaliacoes/11/respostas  (token de login)
-  HTTP 201  {"id_tentativa":140576,"percentual":100,"decisao":"aprovada","ranking_invalidado":true,"placar_atualizado":true}
+  HTTP 201  {"id_tentativa":140577,"percentual":100,"decisao":"aprovada","ranking_invalidado":true,"placar_atualizado":true}
 > POST /avaliacoes/11/respostas  (token de login)
   HTTP 409  {"erro":"quiz já aprovado; não recebe nova tentativa"}
   Quiz aprovado vira 20 pontos (trigger) e o placar acompanha (Write-Through): posição 3011 → 2821 (redis); SQL=2821
@@ -41,9 +41,9 @@ Membro 6, quiz 11 (ainda não aprovado), trilha 4.
 
 ## Ranking (Cache-Aside): 1ª leitura vem do Postgres, 2ª do Redis
 > GET /ranking  (X-Usuario-Id: 2)
-  HTTP 200  {"origem":"postgres","gerado_em":"2026-11-13T01:52:45.372Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"no ...
+  HTTP 200  {"origem":"postgres","gerado_em":"2026-11-13T20:26:11.115Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"no ...
 > GET /ranking  (X-Usuario-Id: 2)
-  HTTP 200  {"origem":"cache","gerado_em":"2026-11-13T01:52:45.372Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"nome" ...
+  HTTP 200  {"origem":"cache","gerado_em":"2026-11-13T20:26:11.115Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"nome" ...
 
 ## Placar (Sorted Set): posição de quem está logado
 > GET /ranking/eu  (X-Usuario-Id: 8)
@@ -76,7 +76,7 @@ Membro 6, quiz 11 (ainda não aprovado), trilha 4.
   HTTP 200  {"status":"ja_aprovada","ranking_invalidado":false,"placar_atualizado":false}
   (depois da aprovação nova, o top 100 foi invalidado: a próxima leitura vem do Postgres)
 > GET /ranking  (X-Usuario-Id: 2)
-  HTTP 200  {"origem":"postgres","gerado_em":"2026-11-13T01:52:49.266Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"no ...
+  HTTP 200  {"origem":"postgres","gerado_em":"2026-11-13T20:26:13.255Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"no ...
   Write-Through: a posição do membro 8 mudou no placar sem reconstruir nada:
     usuário 8: Redis=554 (redis)  SQL=554
 
@@ -112,7 +112,7 @@ Membro 6, quiz 11 (ainda não aprovado), trilha 4.
 > GET /saude  (X-Usuario-Id: nenhum)
   HTTP 200  {"api":"ok","postgres":"ok","redis":"indisponível"}
 > GET /ranking  (X-Usuario-Id: 2)
-  HTTP 200  {"origem":"postgres","gerado_em":"2026-11-13T01:52:51.826Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"no ...
+  HTTP 200  {"origem":"postgres","gerado_em":"2026-11-13T20:26:15.324Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"no ...
 > GET /ranking/eu  (X-Usuario-Id: 8)
   HTTP 200  {"origem":"postgres","id_usuario":8,"posicao":554,"total_pontos":280,"total_participantes":5876}
 > POST /tentativas/126202/aprovar  (X-Usuario-Id: 2)
@@ -122,9 +122,9 @@ Membro 6, quiz 11 (ainda não aprovado), trilha 4.
 > GET /saude  (X-Usuario-Id: nenhum)
   HTTP 200  {"api":"ok","postgres":"ok","redis":"ok"}
 > GET /ranking  (X-Usuario-Id: 2)
-  HTTP 200  {"origem":"postgres","gerado_em":"2026-11-13T01:52:55.759Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"no ...
+  HTTP 200  {"origem":"postgres","gerado_em":"2026-11-13T20:26:18.951Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"no ...
 > GET /ranking  (X-Usuario-Id: 2)
-  HTTP 200  {"origem":"cache","gerado_em":"2026-11-13T01:52:55.759Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"nome" ...
+  HTTP 200  {"origem":"cache","gerado_em":"2026-11-13T20:26:18.951Z","total_participantes":5876,"participantes":[{"posicao":1,"id_usuario":1121,"nome":"Bruno Dias 1121","total_pontos":280,"ultima_concessao":"2026-08-18T15:56:33.790Z"},{"posicao":2,"id_usuario":2178,"nome" ...
   O Redis voltou VAZIO (sem disco): o placar é reconstruído na primeira leitura e inclui a aprovação feita com ele fora:
     usuário 59: Redis=555 (redis (placar reconstruído))  SQL=555
 

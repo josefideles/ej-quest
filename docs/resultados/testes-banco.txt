@@ -1,4 +1,4 @@
-# Testes do banco · 12/11/2026 22:42
+# Testes do banco · 13/11/2026 17:26
 
 ## 1. Restrições (G-dados)
                                  caso                                  |                                                                     resultado                                                                      
@@ -87,14 +87,14 @@ Entrega: tentativa 140573 (participação 43229). Aprovadores: gestor 3 (sessão
 Sessão A (a linha 'aprovada' é o p_status devolvido pela procedure):
   BEGIN
   aprovada
-  A: 22:42:36.720 aprovou e segura o bloqueio por 3 s
+  A: 17:26:03.969 aprovou e segura o bloqueio por 3 s
   
   COMMIT
-  A: 22:42:39.728 COMMIT
+  A: 17:26:06.984 COMMIT
 Sessão B (repare no horário: ela esperou o COMMIT de A e recebeu 'ja_aprovada'):
-  B: 22:42:37.785 chegou e pediu a aprovação
+  B: 17:26:04.972 chegou e pediu a aprovação
   ja_aprovada
-  B: 22:42:39.736 destravou
+  B: 17:26:06.990 destravou
 
 Resultado final no banco (esperado: 1, 1, 1):
  resultados | conclusoes | pontuacoes | quem_aprovou 
