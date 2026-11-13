@@ -1,0 +1,6 @@
+# DEC-013 · Camada de repositórios na API e CORS para o front de PW1
+
+- **Contexto:** a seção 3.1 da especificação de BD2 descreve a arquitetura MVC/Layered com Controller, Service e Repository (um repositório SQL e um NoSQL). Os serviços tinham SQL embutido. Em PW1, as aulas 12 a 14 ligam o React ao servidor com `axios` e o pacote `cors`, e o projeto final precisa estar online, com front e API em origens diferentes.
+- **Decisão:** todo o SQL da API foi para `api/src/repositorios/postgres.js` (Repository SQL); o Sorted Set foi para `repositorios/placar-redis.js` e o cache de string continua em `cache.js` (Repositories NoSQL). Controllers em `rotas.js`, serviços em `servicos/`. O CORS foi escrito à mão em `index.js` (origens em `CORS_ORIGENS`, padrão `http://localhost:5173`), sem dependência nova, para ficar visível o que o pacote `cors` faz. Também entrou uma resposta 404 em JSON para rota inexistente.
+- **Consequências:** a camada fica igual ao diagrama da especificação de BD2 e ao MVC da aula 4 de PW1. Continua sem ORM (DEC-003): o repositório é SQL parametrizado à mão.
+- **Quem decidiu:** agente, a partir dos materiais de BD2 e PW1 (DEC-009) · **Data:** 12/11/2026 · **Situação:** vigente
