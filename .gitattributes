@@ -1,0 +1,6 @@
+# Fim de linha LF mesmo quando o repositório é clonado no Windows
+# (com CRLF, o bash quebra os scripts com "\r: command not found").
+*.sh   text eol=lf
+*.sql  text eol=lf
+*.js   text eol=lf
+*.yml  text eol=lf

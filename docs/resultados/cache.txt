@@ -1,0 +1,79 @@
+# Experimento de cache · 12/11/2026 22:44
+
+Ambiente: Linux 7.0.0-43-generic, 20 núcleos, 14Gi de RAM; API (Node v22.23.5), PostgreSQL 16 e Redis 7 em Docker na mesma máquina. Medidor dentro do contêiner da API.
+
+## 1. Latência do top 100 (50 chamadas, uma por vez)
+```
+URL: http://localhost:3000/ranking
+Cenário: cache FRIO (DEL antes de cada chamada)
+Repetições: 50 · concorrência: 1 · falhas: 0
+Origem das respostas: {"postgres":50}
+Vazão:   15 requisições/s (3.41 s no total)
+Mediana: 59.32 ms
+p95:     114.70 ms
+Média:   67.36 ms
+Mínimo:  26.77 ms   Máximo: 205.02 ms
+```
+```
+URL: http://localhost:3000/ranking
+Cenário: cache como estiver (quente se o Redis estiver de pé)
+Repetições: 50 · concorrência: 1 · falhas: 0
+Origem das respostas: {"cache":50}
+Vazão:   193 requisições/s (0.26 s no total)
+Mediana: 4.88 ms
+p95:     10.02 ms
+Média:   5.18 ms
+Mínimo:  1.74 ms   Máximo: 33.52 ms
+```
+
+## 2. Vazão do top 100 (2.000 chamadas, 20 ao mesmo tempo)
+### Com Redis (Cache-Aside)
+```
+URL: http://localhost:3000/ranking
+Cenário: cache como estiver (quente se o Redis estiver de pé)
+Repetições: 2000 · concorrência: 20 · falhas: 0
+Origem das respostas: {"cache":2000}
+Vazão:   898 requisições/s (2.23 s no total)
+Mediana: 19.54 ms
+p95:     35.88 ms
+Média:   21.31 ms
+Mínimo:  4.91 ms   Máximo: 167.22 ms
+```
+### Sem Redis (só PostgreSQL)
+```
+URL: http://localhost:3000/ranking
+Cenário: cache como estiver (quente se o Redis estiver de pé)
+Repetições: 2000 · concorrência: 20 · falhas: 0
+Origem das respostas: {"postgres":2000}
+Vazão:   159 requisições/s (12.60 s no total)
+Mediana: 125.42 ms
+p95:     140.39 ms
+Média:   125.07 ms
+Mínimo:  87.57 ms   Máximo: 161.90 ms
+```
+
+## 3. Vazão da posição do usuário (2.000 chamadas, 20 ao mesmo tempo, usuários sorteados)
+### Com Redis (Sorted Set, ZREVRANK)
+```
+URL: http://localhost:3000/ranking/eu
+Cenário: cache como estiver (quente se o Redis estiver de pé)
+Repetições: 2000 · concorrência: 20 · falhas: 0
+Origem das respostas: {"redis":2000}
+Vazão:   1304 requisições/s (1.53 s no total)
+Mediana: 12.68 ms
+p95:     28.98 ms
+Média:   14.81 ms
+Mínimo:  3.56 ms   Máximo: 63.89 ms
+```
+### Sem Redis (row_number() sobre o ranking inteiro no PostgreSQL)
+```
+URL: http://localhost:3000/ranking/eu
+Cenário: cache como estiver (quente se o Redis estiver de pé)
+Repetições: 2000 · concorrência: 20 · falhas: 0
+Origem das respostas: {"postgres":2000}
+Vazão:   148 requisições/s (13.53 s no total)
+Mediana: 132.07 ms
+p95:     164.09 ms
+Média:   134.42 ms
+Mínimo:  71.36 ms   Máximo: 323.23 ms
+```

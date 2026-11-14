@@ -9,8 +9,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# shellcheck disable=SC1091
-set -a; source .env; set +a
+. scripts/_ambiente.sh
 
 psql_db() {
   docker compose exec -T db psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" "$@"

@@ -1,54 +1,78 @@
-# Sobe o ambiente inteiro do EJ Quest: PostgreSQL (fonte oficial), Redis (cache do ranking) e a API.
+# Sobe o ambiente inteiro do EJ Quest: PostgreSQL (fonte oficial), Redis (cópias derivadas), a API
+# (server/) e o front (client/). Depois de subir, abra http://localhost:8080 no navegador.
 #
-#   docker compose up -d          -> sobe tudo
-#   docker compose ps             -> confere se está de pé
-#   docker compose logs -f api    -> acompanha a API
-#   docker compose stop cache     -> derruba só o Redis (teste de queda do cache)
-#   docker compose down           -> desliga (os dados do Postgres ficam no volume)
-#   docker compose down -v        -> desliga e APAGA o volume (banco zerado)
+#   docker compose up -d --build   -> sobe tudo. Na PRIMEIRA vez, o PostgreSQL cria as tabelas e a
+#                                     carga de 140 mil tentativas sozinho (db/01 a 05, ~1 min).
+#   docker compose ps              -> confere se está de pé (db precisa ficar "healthy")
+#   docker compose logs -f api     -> acompanha a API
+#   docker compose stop cache      -> derruba só o Redis (teste de queda do cache)
+#   docker compose down            -> desliga (os dados do Postgres ficam no volume)
+#   docker compose down -v         -> desliga e APAGA o volume (na próxima subida, a carga é refeita)
+#
+# Funciona sem arquivo .env: todo valor tem um padrão local. Portas podem ser trocadas no .env
+# (PORTA_POSTGRES, PORTA_REDIS, PORTA_API, PORTA_WEB) se já estiverem ocupadas na sua máquina.
 
 services:
   db:
     image: postgres:16
     environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-ej_quest}
+      POSTGRES_USER: ${POSTGRES_USER:-ej_quest}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ej-quest-local}
     ports:
-      # 5433 na sua máquina para não brigar com outro Postgres local (ex.: o do Plano Diretor).
-      - "5433:5432"
+      # 5433 na sua máquina para não brigar com outro PostgreSQL local.
+      - "${PORTA_POSTGRES:-5433}:5432"
     volumes:
       # Volume nomeado: os dados sobrevivem a "docker compose down".
       - dados_postgres:/var/lib/postgresql/data
-      # Seus scripts SQL ficam visíveis dentro do contêiner em /db (só leitura).
+      # Na primeira subida (volume vazio), o PostgreSQL roda os .sql desta pasta em ordem
+      # alfabética: 01_schema, 02_indices, 03_views, 04_regras, 05_povoamento.
+      - ./db:/docker-entrypoint-initdb.d:ro
+      # Os mesmos scripts, para o recriar-banco.sh e os testes.
       - ./db:/db:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      # -h 127.0.0.1: testa por TCP. Durante a carga inicial o PostgreSQL só aceita conexões
+      # locais por socket, então o "healthy" só aparece quando a carga terminou.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
-      retries: 10
+      retries: 60
+      start_period: 30s
 
   cache:
     image: redis:7
-    # Sem persistência em disco: o ranking no Redis é descartável e reconstruível pelo Postgres.
+    # Sem persistência em disco: tudo no Redis é cópia descartável, reconstruível pelo Postgres.
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ports:
-      - "6380:6379"
+      - "${PORTA_REDIS:-6380}:6379"
 
   api:
-    build: ./api
+    build: ./server
     environment:
       PORTA: 3000
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      DATABASE_URL: postgres://${POSTGRES_USER:-ej_quest}:${POSTGRES_PASSWORD:-ej-quest-local}@db:5432/${POSTGRES_DB:-ej_quest}
       REDIS_URL: redis://cache:6379
+      CORS_ORIGENS: ${CORS_ORIGENS:-http://localhost:5173}
+      TOKEN_SEGREDO: ${TOKEN_SEGREDO:-troque-este-segredo-local}
+      # Modo demonstração: aceita o cabeçalho X-Usuario-Id além do token de login, para os
+      # scripts de teste e de medição. Use 0 num ambiente real.
+      PERMITIR_CABECALHO_USUARIO: ${PERMITIR_CABECALHO_USUARIO:-1}
     ports:
-      - "3000:3000"
+      - "${PORTA_API:-3000}:3000"
     depends_on:
       db:
         condition: service_healthy
       # O Redis não é condição: a API precisa funcionar mesmo com o cache fora (RNF06).
       cache:
         condition: service_started
+
+  client:
+    # Front React (build estático servido pelo nginx, que também repassa /api para a API).
+    build: ./client
+    ports:
+      - "${PORTA_WEB:-8080}:80"
+    depends_on:
+      - api
 
 volumes:
   dados_postgres:
