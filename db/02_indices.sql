@@ -1,0 +1,21 @@
+-- =====================================================================================
+-- 02_indices.sql  |  Índices extras (seção 8.3 do planejamento, RNF05, DEC-010)
+-- Escrito pelo agente em 12/11/2026 a partir do roteiro do Fideles (DEC-009).
+-- =====================================================================================
+--
+-- PRIMARY KEY e UNIQUE já criam índice sozinhos. Aqui entram só os EXTRAS, cada um ligado a
+-- uma consulta real e justificado por medição (scripts/medir-indice.sh). Confira com  \di
+--
+-- ATENÇÃO: o PostgreSQL NÃO cria índice automático em coluna de FOREIGN KEY (o MySQL cria).
+--
+-- O que a medição mudou (DEC-010): o planejamento previa idx_tentativa_participacao_data
+-- (id_participacao, enviada_em). Medido em 12/11/2026, ele não muda nada: 0,28 ms com ele,
+-- 0,25 ms sem. Motivo: as UNIQUE (id_participacao, numero) e (id_participacao, id_tentativa)
+-- já criaram índices que começam por id_participacao, e o planejador usa um deles.
+-- Índice que não ajuda só custa: ocupa disco e deixa todo INSERT mais lento. Saiu.
+
+-- Atividade recente e relatórios por período (painel do gestor):
+--   "as 20 entregas mais recentes"  e  "quantas entregas nos últimos 30 dias".
+-- Sem este índice, as duas leem a tabela inteira (Seq Scan nas 140 mil linhas) e ordenam.
+-- Com ele, o banco lê o índice já ordenado e para quando tem o que precisa.
+CREATE INDEX idx_tentativa_enviada_em ON tentativa_avaliacao (enviada_em);

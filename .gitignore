@@ -5,4 +5,12 @@ dist/
 !.env.example
 *.log
 .DS_Store
-agents/
+agents/resultados/
+
+# Material de estudo e planejamento: fica só na máquina do autor.
+docs/spec/
+docs/manual/
+docs/videoaula/
+docs/relatorio/
+AGENTS.md
+CLAUDE.md
