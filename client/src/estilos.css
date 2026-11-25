@@ -262,7 +262,7 @@ a { color: inherit; }
   .nav-item.active svg { color: var(--vermelho); }
   .nav-sair { display: flex; margin-top: auto; }
   .nav-usuario { display: block; color: var(--texto-fraco); font-size: 12px; padding: 0 12px; }
-  .conteudo { grid-column: 2; padding: 24px 32px; max-width: 1180px; width: 100%; }
+  .conteudo { grid-column: 2; padding: 24px 32px; max-width: 1180px; width: 100%; margin: 0 auto; }
   .jornada, .ranking, .perfil { max-width: 560px; width: 100%; margin: 0 auto; }
   .numeros { grid-template-columns: repeat(4, 1fr); }
   .gestao-colunas { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }
