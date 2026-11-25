@@ -56,7 +56,14 @@ export default function Ranking({ usuario }) {
         ))}
       </div>
 
-      {eu && !euNoTopo && (
+      {eu && eu.posicao === null && (
+        <p className="aviso-ranking">
+          Você ainda não aparece no ranking: só entra quem já ganhou pontos em alguma trilha.
+          Gestores sem matrícula em trilha ficam de fora.
+        </p>
+      )}
+
+      {eu && eu.posicao !== null && !euNoTopo && (
         <div className="linha-ranking eu">
           <span className="posicao">{eu.posicao.toLocaleString('pt-BR')}</span>
           <Avatar nome={usuario.nome} tamanho={34} />
