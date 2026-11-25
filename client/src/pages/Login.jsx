@@ -1,5 +1,5 @@
-// Tela 01 · Login (RF01). onChange nos campos, onClick/onSubmit no botão e useState para o erro
-// (aula 10 de PW1). A senha é conferida no PostgreSQL (bcrypt, fn_autenticar); a API devolve
+// Tela 01 · Login (RF01). onChange nos campos, onSubmit no formulário (disparado pelo clique no
+// botão Entrar ou pelo Enter) e useState para o erro (aula 10 de PW1). A senha é conferida no PostgreSQL (bcrypt, fn_autenticar); a API devolve
 // um token assinado, válido por 8 h.
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
